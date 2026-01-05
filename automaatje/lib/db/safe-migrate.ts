@@ -20,6 +20,14 @@ try {
     )
     .get();
 
+  // Read the journal to get migration metadata
+  const journalPath = path.join(MIGRATIONS_FOLDER, "meta", "_journal.json");
+  let journal: any = { entries: [] };
+  
+  if (fs.existsSync(journalPath)) {
+    journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
+  }
+
   if (!tableCheck) {
     console.log("Migration tracking table not found. Initializing...");
     
@@ -31,62 +39,67 @@ try {
         created_at INTEGER
       )
     `);
-
-    // Check which migrations should already be marked as applied
-    // by checking if their tables exist
-    const migrationFiles = fs
-      .readdirSync(MIGRATIONS_FOLDER)
-      .filter((file) => file.endsWith(".sql"))
-      .sort();
-
-    console.log(`Found ${migrationFiles.length} migration files`);
-
-    // Read the journal to get migration metadata
-    const journalPath = path.join(MIGRATIONS_FOLDER, "meta", "_journal.json");
-    let journal: any = { entries: [] };
+  } else {
+    console.log("Migration tracking table exists");
     
-    if (fs.existsSync(journalPath)) {
-      journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
+    // Check if it's properly populated
+    const migrationCount = sqlite
+      .prepare(`SELECT COUNT(*) as count FROM "__drizzle_migrations"`)
+      .get() as { count: number };
+    
+    console.log(`Found ${migrationCount.count} migration records in tracking table`);
+    console.log(`Expected ${journal.entries.length} migrations total`);
+    
+    if (migrationCount.count < journal.entries.length) {
+      console.log("⚠ Migration tracking table appears incomplete. Syncing...");
     }
+  }
 
-    // For each migration, check if its tables exist
-    for (const entry of journal.entries) {
-      const migrationFile = `${entry.tag}.sql`;
-      const migrationPath = path.join(MIGRATIONS_FOLDER, migrationFile);
+  // Always check and sync migration state with actual database tables
+  for (const entry of journal.entries) {
+    // Check if this migration is already tracked
+    const tracked = sqlite
+      .prepare(`SELECT hash FROM "__drizzle_migrations" WHERE hash = ?`)
+      .get(entry.tag);
+    
+    if (tracked) {
+      continue; // Already tracked, skip
+    }
+    
+    // Migration not tracked - check if tables exist
+    const migrationFile = `${entry.tag}.sql`;
+    const migrationPath = path.join(MIGRATIONS_FOLDER, migrationFile);
 
-      if (fs.existsSync(migrationPath)) {
-        const sql = fs.readFileSync(migrationPath, "utf-8");
-        
-        // Extract table names from CREATE TABLE statements
-        const tableMatches = sql.matchAll(/CREATE TABLE [`"]?(\w+)[`"]?/gi);
-        const tables = Array.from(tableMatches).map((match) => match[1]);
+    if (fs.existsSync(migrationPath)) {
+      const sql = fs.readFileSync(migrationPath, "utf-8");
+      
+      // Extract table names from CREATE TABLE statements
+      const tableMatches = sql.matchAll(/CREATE TABLE [`"]?(\w+)[`"]?/gi);
+      const tables = Array.from(tableMatches).map((match) => match[1]);
 
-        if (tables.length > 0) {
-          // Check if the first table from this migration exists
-          const firstTable = tables[0];
-          const tableExists = sqlite
+      if (tables.length > 0) {
+        // Check if the first table from this migration exists
+        const firstTable = tables[0];
+        const tableExists = sqlite
+          .prepare(
+            `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+          )
+          .get(firstTable);
+
+        if (tableExists) {
+          console.log(`  ✓ Migration ${entry.tag} already applied (found table: ${firstTable}) - marking as tracked`);
+          
+          // Mark this migration as applied
+          sqlite
             .prepare(
-              `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+              `INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)`
             )
-            .get(firstTable);
-
-          if (tableExists) {
-            console.log(`  ✓ Migration ${entry.tag} appears to be applied (found table: ${firstTable})`);
-            
-            // Mark this migration as applied
-            sqlite
-              .prepare(
-                `INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)`
-              )
-              .run(entry.tag, entry.when || Date.now());
-          } else {
-            console.log(`  ○ Migration ${entry.tag} not yet applied`);
-          }
+            .run(entry.tag, entry.when || Date.now());
+        } else {
+          console.log(`  ○ Migration ${entry.tag} not yet applied`);
         }
       }
     }
-  } else {
-    console.log("Migration tracking table exists");
   }
 
   // Now run migrations normally - Drizzle will skip already-applied ones

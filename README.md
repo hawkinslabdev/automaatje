@@ -1,6 +1,6 @@
 #  Automaatje
 
-[![License](https://img.shields.io/badge/license-Private-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL%203.0-blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/hawkinslabdev/automaatje)](https://github.com/hawkinslabdev/automaatje/commits/main)
 [![Support](https://img.shields.io/badge/Support-Buy%20me%20a%20coffee-fdd734?logo=buy-me-a-coffee)](https://coff.ee/hawkinslabdev)
 

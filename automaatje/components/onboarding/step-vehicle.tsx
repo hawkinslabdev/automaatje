@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info, AlertCircle } from "lucide-react";
+import { KentekenCheck } from "rdw-kenteken-check";
 
 interface StepVehicleProps {
   data: {
@@ -21,14 +22,23 @@ interface StepVehicleProps {
 
 export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
   const handleLicensePlateChange = (value: string) => {
-    // Auto-format: uppercase and add dashes for 6-character plates
-    let formatted = value.replace(/[\s-]/g, "").toUpperCase();
+    // Just uppercase the input, preserve dashes if user typed them
+    const uppercased = value.toUpperCase();
+    onChange("licensePlate", uppercased);
+  };
 
-    if (formatted.length === 6) {
-      formatted = `${formatted.slice(0, 2)}-${formatted.slice(2, 4)}-${formatted.slice(4, 6)}`;
+  const handleLicensePlateBlur = () => {
+    // Format only when user leaves the field
+    const cleaned = data.licensePlate.replace(/[\s-]/g, "");
+    
+    if (cleaned.length === 0) return;
+    
+    const kentekenCheck = new KentekenCheck(cleaned);
+    
+    if (kentekenCheck.valid) {
+      const formatted = kentekenCheck.formatLicense();
+      onChange("licensePlate", formatted);
     }
-
-    onChange("licensePlate", formatted);
   };
 
   return (
@@ -47,9 +57,10 @@ export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
             id="licensePlate"
             name="licensePlate"
             type="text"
-            placeholder="XX-XX-XX"
+            placeholder="XX-00-XX"
             value={data.licensePlate}
             onChange={(e) => handleLicensePlateChange(e.target.value)}
+            onBlur={handleLicensePlateBlur}
             className="uppercase"
             maxLength={8}
             required
@@ -61,13 +72,24 @@ export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
                 <span className="font-medium">{errors.licensePlate}</span>
               </div>
               <p className="text-xs text-destructive/80">
-                Controleer of je kenteken klopt. Voorbeelden: 12-ABC-3, XX-00-XX, ZV-858-G
+                Controleer of je kenteken klopt
               </p>
             </div>
           )}
-          {!errors.licensePlate && (
+          {!errors.licensePlate && data.licensePlate === "XX-XX-XX" && data.licensePlate.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-md bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-500">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Ongeldig kenteken</span>
+              </div>
+              <p className="text-xs text-amber-600/80 dark:text-amber-500/80">
+                Dit kenteken voldoet niet aan de RDW standaarden.
+              </p>
+            </div>
+          )}
+          {!errors.licensePlate && data.licensePlate !== "XX-XX-XX" && (
             <p className="text-xs text-muted-foreground">
-              Nederlands kenteken (bijv. 12-ABC-3, ZV-858-G, of XX-00-XX)
+              Nederlands kenteken
             </p>
           )}
         </div>

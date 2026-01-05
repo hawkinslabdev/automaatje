@@ -30,20 +30,13 @@
     {
       "src": "/pwa/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "/pwa/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/pwa/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/pwa/icons/icon-180x180.png",
@@ -83,6 +76,68 @@
     {
       "src": "/pwa/icons/icon-310x310.png",
       "sizes": "310x310",
+      "type": "image/png"
+    }
+  ],
+  "splash_screens": [
+    {
+      "src": "/pwa/splash/splash-1125x2436.png",
+      "sizes": "1125x2436",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-750x1334.png",
+      "sizes": "750x1334",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-1242x2208.png",
+      "sizes": "1242x2208",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-1668x2224.png",
+      "sizes": "1668x2224",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-2048x2732.png",
+      "sizes": "2048x2732",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-1536x2048.png",
+      "sizes": "1536x2048",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-320x426.png",
+      "sizes": "320x426",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-320x470.png",
+      "sizes": "320x470",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-480x640.png",
+      "sizes": "480x640",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-720x960.png",
+      "sizes": "720x960",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-960x1280.png",
+      "sizes": "960x1280",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/splash/splash-1280x1920.png",
+      "sizes": "1280x1920",
       "type": "image/png"
     }
   ],

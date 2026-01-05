@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { hashPassword } from "@/lib/auth/password";
 import { getSession } from "@/lib/auth/session";
@@ -11,6 +11,7 @@ import {
   registrationSchema,
   type RegistrationWizardData,
 } from "@/lib/validations/registration-onboarding";
+import { normalizeEmail } from "@/lib/utils/email";
 
 interface RegistrationResult {
   success: boolean;
@@ -47,18 +48,20 @@ export async function completeRegistration(
     // Validate input
     const validated = registrationSchema.parse(data);
 
-    // Check if email already exists
-    const existingUsers = await db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.email, validated.email))
-      .limit(1);
+    // Normalize email for consistent comparison
+    const normalizedEmail = normalizeEmail(validated.email);
 
-    if (existingUsers.length > 0) {
-      return {
-        success: false,
-        error: "Dit e-mailadres is al geregistreerd",
-      };
+    // Check if normalized email already exists
+    // We need to check against all users because existing emails might not be normalized
+    const allUsers = await db.select({ email: schema.users.email }).from(schema.users);
+    
+    for (const user of allUsers) {
+      if (normalizeEmail(user.email) === normalizedEmail) {
+        return {
+          success: false,
+          error: "Dit e-mailadres is al geregistreerd",
+        };
+      }
     }
 
     // Hash password

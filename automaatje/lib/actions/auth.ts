@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import { redirect } from "next/navigation";
 import { getRandomAvatarSeed } from "@/lib/avatar";
+import { normalizeEmail } from "@/lib/utils/email";
 
 export async function login(formData: FormData) {
   try {
@@ -19,10 +20,13 @@ export async function login(formData: FormData) {
     // Validate input
     const validated = loginSchema.parse(rawData);
 
-    // Find user
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.email, validated.email),
-    });
+    // Normalize email for lookup
+    const normalizedEmail = normalizeEmail(validated.email);
+
+    // Find user by normalized email
+    // We need to check against all users because existing emails might not be normalized
+    const allUsers = await db.select().from(schema.users);
+    const user = allUsers.find(u => normalizeEmail(u.email) === normalizedEmail);
 
     if (!user) {
       return { success: false, error: "Ongeldig e-mailadres of wachtwoord" };
@@ -104,13 +108,17 @@ export async function register(formData: FormData) {
       }
     }
 
-    // Check if email already exists
-    const existingUser = await db.query.users.findFirst({
-      where: eq(schema.users.email, validated.email),
-    });
+    // Normalize email for consistent comparison
+    const normalizedEmail = normalizeEmail(validated.email);
 
-    if (existingUser) {
-      return { success: false, error: "E-mailadres is al in gebruik" };
+    // Check if normalized email already exists
+    // We need to check against all users because existing emails might not be normalized
+    const allUsers = await db.select({ email: schema.users.email }).from(schema.users);
+    
+    for (const user of allUsers) {
+      if (normalizeEmail(user.email) === normalizedEmail) {
+        return { success: false, error: "E-mailadres is al in gebruik" };
+      }
     }
 
     // Hash password

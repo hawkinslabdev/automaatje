@@ -1,6 +1,7 @@
 #  Automaatje
 
 [![License](https://img.shields.io/badge/license-AGPL%203.0-blue)](LICENSE)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/hawkinslabdev/automaatje/.github%2Fworkflows%2Fdocker.yml)](#)
 [![Last commit](https://img.shields.io/github/last-commit/hawkinslabdev/automaatje)](https://github.com/hawkinslabdev/automaatje/commits/main)
 [![Support](https://img.shields.io/badge/Support-Buy%20me%20a%20coffee-fdd734?logo=buy-me-a-coffee)](https://coff.ee/hawkinslabdev)
 
@@ -57,7 +58,7 @@ The name “Automaatje” is a small Dutch wordplay. “Auto” means car, “ma
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy_me_a_coffee-fdd734?\&logo=buy-me-a-coffee\&logoColor=black\&style=for-the-badge)](https://coff.ee/hawkinslabdev)
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-30363d?style=for-the-badge\&logo=github\&logoColor=white)](https://github.com/sponsors/hawkinslabdev)
 
-If this saves you time, stress, or a spreadsheet, feel free to buy me a coffee or sponsor the project. It helps keep the lights on.
+If this saves you time, stress, or a spreadsheet, feel free to buy me a coffee or sponsor the project. It helps keep the coffee fresh.
 
 ## License
 

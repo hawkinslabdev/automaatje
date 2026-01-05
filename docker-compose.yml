@@ -8,6 +8,7 @@ services:
       - DATABASE_URL=/data/sqlite.db
       - SESSION_SECRET=change-this-to-a-random-string-minimum-32-characters
       - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_APP_NAME=Automaatje
       - NEXT_PUBLIC_APP_URL=http://localhost:3123
       - OSRM_BASE_URL=https://router.project-osrm.org

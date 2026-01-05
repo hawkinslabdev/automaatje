@@ -9,7 +9,7 @@ export function WizardStepIndicator({ currentStep, totalSteps }: WizardStepIndic
   const steps = Array.from({ length: totalSteps }, (_, i) => i + 1);
 
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto pb-2 px-2">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-x-hidden pb-2 px-2">
       {steps.map((step, index) => (
         <div key={step} className="flex items-center">
           <div className="flex flex-col items-center">

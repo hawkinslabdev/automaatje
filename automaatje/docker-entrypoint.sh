@@ -3,13 +3,13 @@ set -e
 
 echo "Starting Automaatje container..."
 
-# Run database migrations if needed
-if [ ! -f "$DATABASE_URL" ] || [ ! -s "$DATABASE_URL" ]; then
-  echo "Initializing database..."
-  node node_modules/tsx/dist/cli.mjs lib/db/migrate.ts
-else
-  echo "Database already exists, running migrations..."
-  node node_modules/tsx/dist/cli.mjs lib/db/migrate.ts
+# Run safe database migrations
+echo "Checking database state..."
+node node_modules/tsx/dist/cli.mjs lib/db/safe-migrate.ts
+
+if [ $? -ne 0 ]; then
+  echo "✗ Migration failed! Container will not start."
+  exit 1
 fi
 
 # Function to run job processor

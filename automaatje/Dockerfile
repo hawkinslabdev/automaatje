@@ -12,7 +12,7 @@ RUN npm ci --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Build Next.js application
+# Build Next.js application with standalone output
 RUN npm run build
 
 # Production stage
@@ -20,28 +20,24 @@ FROM node:24-alpine AS runner
 
 WORKDIR /app
 
-# Install production dependencies and cron
-RUN apk add --no-cache \
-    tini \
-    && npm install -g tsx
+# Install only required system dependencies
+RUN apk add --no-cache tini wget
 
-# Copy package files and install production dependencies
-COPY package*.json ./
-RUN npm ci --only=production --legacy-peer-deps
-
-# Copy built application from builder
-COPY --from=builder /app/.next ./.next
+# Copy standalone Next.js output (includes minimal node_modules)
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
 
-# Copy necessary source files for job processor
-COPY app ./app
-COPY lib ./lib
-COPY scripts ./scripts
-COPY drizzle ./drizzle
-COPY next.config.ts ./
-COPY middleware.ts ./
-COPY tsconfig.json ./
+# Copy package.json for npm scripts
+COPY --from=builder /app/package.json ./package.json
+
+# Copy only necessary runtime files for job processor
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 
 # Create data directory
 RUN mkdir -p /data

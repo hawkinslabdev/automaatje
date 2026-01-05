@@ -22,14 +22,16 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/pwa/icons/icon-48x48.png", sizes: "48x48", type: "image/png" },
       { url: "/pwa/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/pwa/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
+    shortcut: "/pwa/icons/icon-192x192.png",
     apple: [
-      { url: "/pwa/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
-      { url: "/pwa/icons/icon-167x167.png", sizes: "167x167", type: "image/png" },
-      { url: "/pwa/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
       { url: "/pwa/icons/icon-120x120.png", sizes: "120x120", type: "image/png" },
+      { url: "/pwa/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/pwa/icons/icon-167x167.png", sizes: "167x167", type: "image/png" },
+      { url: "/pwa/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
     ],
   },
 };
@@ -49,6 +51,9 @@ export default function RootLayout({
   return (
     <html lang="nl" suppressHydrationWarning>
       <head>
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192x192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/pwa/icons/icon-512x512.png" />
         <meta name="theme-color" content="#6a93a0" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/pwa/icons/icon-180x180.png" />

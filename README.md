@@ -29,7 +29,9 @@ The goal to be correct, predictable, and boring in the ways that matter.
 <details>
 <summary>🇳🇱 In het Nederlands</summary>
 <br>
-Automaatje is een self-hosted kilometerregistratie-app voor mensen die graag zelf de controle houden. Denk aan zzp’ers, ondernemers, werknemers met een leaseauto. De web-app registreert ritten, berekent afstanden en bewaart alles op een manier die aansluit bij de eisen van de Belastingdienst. Ons doel is om het gewoon goed te doen.
+Automaatje is een self-hosted kilometerregistratie-app voor mensen die graag zelf de controle houden. Denk aan zzp’ers, ondernemers, werknemers met een leaseauto. De web-app registreert ritten, berekent afstanden en bewaart alles op een manier die aansluit bij de eisen van de Belastingdienst. 
+
+Het doel van de app is om de registratie gewoon goed te doen, zonder enige complexiteit.
 
 </details>
 
@@ -38,7 +40,8 @@ Automaatje is een self-hosted kilometerregistratie-app voor mensen die graag zel
 The easiest way to get Automaatje running locally is with Docker Compose. Grab the compose file, start the stack, and you’re up.
 
 ```bash
-mkdir automaatje && cd automaatje && curl -O https://raw.githubusercontent.com/hawkinslabdev/automaatje/refs/heads/main/docker-compose.yml && docker compose up -d
+mkdir automaatje && cd automaatje
+curl -O https://raw.githubusercontent.com/hawkinslabdev/automaatje/refs/heads/main/docker-compose.yml && docker compose up -d
 ```
 
 <details> <summary>🇬🇧 In English</summary>

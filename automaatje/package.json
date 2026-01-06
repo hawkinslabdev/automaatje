@@ -11,7 +11,7 @@
     "db:migrate": "tsx lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
-    "db:reset": "rm -f sqlite.db && npm run db:push && echo '\nDatabase reset! Clear your cookies (setup_complete) to test onboarding again.'",
+    "db:reset": "rm -f sqlite.db && npm run db:push && echo '\\nDatabase reset! Restart your app to test onboarding again.'",
     "db:drop": "rm -f sqlite.db && echo '\nDatabase deleted!'",
     "jobs:process": "tsx scripts/process-jobs.ts",
     "jobs:init": "tsx scripts/init-jobs.mjs",

@@ -7,7 +7,6 @@ import { getSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { setupSchema, type SetupWizardData } from "@/lib/validations/setup";
 import { normalizeLicensePlate, validateDutchLicensePlate } from "@/lib/validations/vehicle";
-import { cookies } from "next/headers";
 import { getRandomAvatarSeed } from "@/lib/avatar";
 
 /**
@@ -160,16 +159,6 @@ export async function completeSetup(data: SetupWizardData) {
     session.role = "ADMIN";
     session.isLoggedIn = true;
     await session.save();
-
-    // 9. Set setup_complete cookie
-    const cookieStore = await cookies();
-    cookieStore.set("setup_complete", "true", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 365 * 24 * 60 * 60, // 1 year
-      path: "/",
-    });
 
     return {
       success: true,

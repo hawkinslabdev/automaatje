@@ -7,20 +7,9 @@ import { cookies } from "next/headers";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if setup is complete via cookie
-  const setupComplete = request.cookies.get("setup_complete")?.value === "true";
-
-  // If setup is not complete, redirect everything to /setup
-  if (!setupComplete) {
-    if (pathname !== "/setup") {
-      return NextResponse.redirect(new URL("/setup", request.url));
-    }
-    return NextResponse.next(); // Allow /setup route
-  }
-
-  // If setup is complete and user tries to access /setup, redirect to login
+  // Skip middleware for /setup - let the route handle setup logic
   if (pathname === "/setup") {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.next();
   }
 
   // Normal authentication logic (after setup is complete)

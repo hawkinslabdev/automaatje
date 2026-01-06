@@ -1,24 +1,26 @@
 /**
  * Test script to verify the Dutch license plate formatting fix
- * 
- * This tests the rdw-kenteken-check integration with problematic plates:
- * - N-105-HL (format X-000-XX) - was incorrectly formatted as T4-92-PZ
- * - ZV-858-G (format XX-000-X) - should remain ZV-858-G
+ *
+ * This tests the custom license plate validation with problematic plates:
+ * - N-105-HL (format X-000-XX)
+ * - ZV-858-G (format XX-000-X)
+ * - TL-299-G (format XX-000-X) - user reported issue
  * - Standard 6-char plates like ABCDEF should format as AB-CD-EF
  */
 
-import { KentekenCheck } from "rdw-kenteken-check";
 import { normalizeLicensePlate, isValidDutchLicensePlate } from "../lib/validations/vehicle";
 
 console.log("🔍 Testing Dutch License Plate Formatting Fix\n");
 console.log("=" .repeat(60));
 
-// Test cases focusing on the bug fix: N-105-HL and ZV-858-G
+// Test cases focusing on the bug fix: N-105-HL, ZV-858-G, and TL-299-G
 const criticalTestCases = [
-  { input: "N105HL", expected: "N-105-HL", description: "X-000-XX format (was broken)" },
+  { input: "N105HL", expected: "N-105-HL", description: "X-000-XX format" },
   { input: "N-105-HL", expected: "N-105-HL", description: "X-000-XX already formatted" },
-  { input: "ZV858G", expected: "ZV-858-G", description: "XX-000-X format (was broken)" },
+  { input: "ZV858G", expected: "ZV-858-G", description: "XX-000-X format" },
   { input: "ZV-858-G", expected: "ZV-858-G", description: "XX-000-X already formatted" },
+  { input: "TL299G", expected: "TL-299-G", description: "XX-000-X format (user issue)" },
+  { input: "TL-299-G", expected: "TL-299-G", description: "XX-000-X already formatted (user issue)" },
 ];
 
 // Additional test cases for other valid formats
@@ -76,15 +78,6 @@ console.log(`  Critical fixes: ${criticalPassed}/${criticalTestCases.length} pas
 console.log(`  Additional tests: ${additionalPassed}/${additionalTestCases.length} passed`);
 console.log(`  Total: ${totalPassed}/${totalTests} tests passed\n`);
 
-// Additional verification with rdw-kenteken-check directly
-console.log("🔬 Direct rdw-kenteken-check verification:\n");
-
-const directTests = ["N105HL", "ZV858G", "ABCDEF"];
-directTests.forEach(plate => {
-  const kentekenCheck = new KentekenCheck(plate);
-  console.log(`  ${plate} → ${kentekenCheck.formatLicense()} (Valid: ${kentekenCheck.valid})`);
-});
-
-console.log("\n✨ Fix verification complete!\n");
+console.log("\n✨ Validation complete!\n");
 
 process.exit(criticalFailed > 0 ? 1 : 0);

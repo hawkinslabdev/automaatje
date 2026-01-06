@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { setupSchema, type SetupWizardData } from "@/lib/validations/setup";
-import { normalizeLicensePlate } from "@/lib/validations/vehicle";
+import { normalizeLicensePlate, validateDutchLicensePlate } from "@/lib/validations/vehicle";
 import { cookies } from "next/headers";
 import { getRandomAvatarSeed } from "@/lib/avatar";
 
@@ -47,10 +47,19 @@ export async function completeSetup(data: SetupWizardData) {
     // 2. Validate all data with Zod schema
     const validated = setupSchema.parse(data);
 
-    // 3. Hash password
+    // 3. Validate license plate with RDW API
+    const plateValidation = await validateDutchLicensePlate(validated.licensePlate);
+    if (!plateValidation.valid) {
+      return {
+        success: false,
+        error: plateValidation.error || "Ongeldig kenteken"
+      };
+    }
+
+    // 4. Hash password
     const passwordHash = await hashPassword(validated.password);
 
-    // 4. Create user with ADMIN role
+    // 5. Create user with ADMIN role
     const userId = nanoid();
     await db.insert(schema.users).values({
       id: userId,
@@ -78,27 +87,36 @@ export async function completeSetup(data: SetupWizardData) {
       },
     });
 
-    // 5. Create vehicle with isMain: true
+    // 6. Create vehicle with isMain: true
     const vehicleId = nanoid();
     const normalizedPlate = normalizeLicensePlate(validated.licensePlate);
+
+    // Prepare vehicle details with RDW data if available
+    const vehicleDetails: any = {
+      type: validated.vehicleType,
+      land: "Nederland",
+      naamVoertuig: validated.vehicleName || plateValidation.vehicleData?.merk || undefined,
+      isMain: true,
+      isEnabled: true,
+      detailsStatus: plateValidation.vehicleData ? "COMPLETE" : "PENDING",
+      kilometerstandTracking: validated.odometerFrequency || "niet_registreren",
+      initialOdometerKm: validated.initialOdometerKm,
+      initialOdometerDate: validated.initialOdometerDate?.getTime(),
+    };
+
+    // Add RDW vehicle data if available
+    if (plateValidation.vehicleData) {
+      vehicleDetails.rdwData = plateValidation.vehicleData;
+    }
+
     await db.insert(schema.vehicles).values({
       id: vehicleId,
       userId,
       licensePlate: normalizedPlate,
-      details: {
-        type: validated.vehicleType,
-        land: "Nederland",
-        naamVoertuig: validated.vehicleName || undefined,
-        isMain: true,
-        isEnabled: true,
-        detailsStatus: "PENDING", // Will be updated by background job
-        kilometerstandTracking: validated.odometerFrequency || "niet_registreren",
-        initialOdometerKm: validated.initialOdometerKm,
-        initialOdometerDate: validated.initialOdometerDate?.getTime(),
-      },
+      details: vehicleDetails,
     });
 
-    // 6. Initialize settings
+    // 7. Initialize settings
     const currentYear = new Date().getFullYear();
 
     await db.insert(schema.settings).values([
@@ -135,7 +153,7 @@ export async function completeSetup(data: SetupWizardData) {
       },
     ]);
 
-    // 7. Create session (auto-login)
+    // 8. Create session (auto-login)
     const session = await getSession();
     session.userId = userId;
     session.email = validated.email;
@@ -143,7 +161,7 @@ export async function completeSetup(data: SetupWizardData) {
     session.isLoggedIn = true;
     await session.save();
 
-    // 8. Set setup_complete cookie
+    // 9. Set setup_complete cookie
     const cookieStore = await cookies();
     cookieStore.set("setup_complete", "true", {
       httpOnly: true,

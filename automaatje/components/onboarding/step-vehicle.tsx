@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info, AlertCircle } from "lucide-react";
-import { KentekenCheck } from "rdw-kenteken-check";
+import { normalizeLicensePlate, isValidDutchLicensePlate } from "@/lib/validations/vehicle";
 
 interface StepVehicleProps {
   data: {
@@ -32,12 +32,11 @@ export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
     if (data.licensePlate.includes('-') || data.licensePlate.length === 0) {
       return;
     }
-    
+
     const cleaned = data.licensePlate.replace(/[\s]/g, "");
-    const kentekenCheck = new KentekenCheck(cleaned);
-    
-    if (kentekenCheck.valid) {
-      const formatted = kentekenCheck.formatLicense();
+
+    if (isValidDutchLicensePlate(cleaned)) {
+      const formatted = normalizeLicensePlate(cleaned);
       onChange("licensePlate", formatted);
     }
   };

@@ -183,7 +183,8 @@ export default async function RegistratiesPage() {
                         {data.destination?.text || "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{registration.vehicle.licensePlate}</Badge>
+                        <span className="md:hidden text-sm">{registration.vehicle.licensePlate}</span>
+                        <Badge variant="outline" className="hidden md:inline-flex">{registration.vehicle.licensePlate}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         {data.distanceKm

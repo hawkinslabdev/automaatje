@@ -135,12 +135,19 @@ export async function calculateOdometerForTrip(
     // 1. Get all meterstand entries for this vehicle
     let meterstandEntries = await getMeterstandEntries(vehicleId);
 
-    // 2. If no meterstand entries, check for initial odometer
-    if (meterstandEntries.length === 0) {
-      const initialReading = await getInitialOdometerReading(vehicleId);
-
-      if (initialReading) {
-        meterstandEntries = [initialReading];
+    // 2. Always include initial odometer from vehicle details if available
+    // This ensures the initial reading is considered alongside meterstand entries
+    const initialReading = await getInitialOdometerReading(vehicleId);
+    if (initialReading) {
+      // Add if it doesn't exist, or if it's earlier than all existing entries
+      const hasInitialEntry = meterstandEntries.some(
+        entry => entry.id === initialReading.id
+      );
+      
+      if (!hasInitialEntry) {
+        meterstandEntries.push(initialReading);
+        // Re-sort after adding initial reading
+        meterstandEntries.sort((a, b) => a.timestamp - b.timestamp);
       }
     }
 

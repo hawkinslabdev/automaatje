@@ -28,11 +28,12 @@ export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
   };
 
   const handleLicensePlateBlur = () => {
-    // Format only when user leaves the field
-    const cleaned = data.licensePlate.replace(/[\s-]/g, "");
+    // Only format if there are no dashes (user typed without formatting)
+    if (data.licensePlate.includes('-') || data.licensePlate.length === 0) {
+      return;
+    }
     
-    if (cleaned.length === 0) return;
-    
+    const cleaned = data.licensePlate.replace(/[\s]/g, "");
     const kentekenCheck = new KentekenCheck(cleaned);
     
     if (kentekenCheck.valid) {
@@ -76,20 +77,9 @@ export function StepVehicle({ data, errors, onChange }: StepVehicleProps) {
               </p>
             </div>
           )}
-          {!errors.licensePlate && data.licensePlate === "XX-XX-XX" && data.licensePlate.length > 0 && (
-            <div className="flex flex-col gap-1 rounded-md bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-500">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                <span className="font-medium">Ongeldig kenteken</span>
-              </div>
-              <p className="text-xs text-amber-600/80 dark:text-amber-500/80">
-                Dit kenteken voldoet niet aan de RDW standaarden.
-              </p>
-            </div>
-          )}
-          {!errors.licensePlate && data.licensePlate !== "XX-XX-XX" && (
+          {!errors.licensePlate && data.licensePlate.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Nederlands kenteken
+              Voer je kenteken in met streepjes voor het beste resultaat (bijv. AB-123-C)
             </p>
           )}
         </div>

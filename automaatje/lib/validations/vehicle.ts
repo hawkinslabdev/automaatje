@@ -26,8 +26,6 @@ export function normalizeLicensePlate(plate: string): string {
   const kentekenCheck = new KentekenCheck(cleaned);
   const formatted = kentekenCheck.formatLicense();
   
-  console.log(`[normalizeLicensePlate] Input: "${plate}" → Cleaned: "${cleaned}" → Formatted: "${formatted}" (Valid: ${kentekenCheck.valid})`);
-  
   // Always format the license plate (formatLicense returns the input if invalid)
   return formatted;
 }
@@ -38,9 +36,6 @@ export function isValidDutchLicensePlate(plate: string): boolean {
   // Remove spaces and dashes before validation
   const cleaned = plate.replace(/[\s-]/g, "").toUpperCase();
   const kentekenCheck = new KentekenCheck(cleaned);
-  const isValid = kentekenCheck.valid;
   
-  console.log(`[isValidDutchLicensePlate] Input: "${plate}" → Cleaned: "${cleaned}" → Valid: ${isValid}`);
-  
-  return isValid;
+  return kentekenCheck.valid;
 }

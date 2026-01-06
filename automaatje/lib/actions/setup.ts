@@ -115,6 +115,26 @@ export async function completeSetup(data: SetupWizardData) {
       details: vehicleDetails,
     });
 
+    // 6a. Create initial meterstand entry for visibility and auditing
+    // This ensures the initial odometer reading appears in reports
+    if (validated.odometerMode === "auto_calculate" && validated.initialOdometerKm && validated.initialOdometerDate) {
+      const meterstandId = nanoid();
+      await db.insert(schema.registrations).values({
+        id: meterstandId,
+        userId,
+        vehicleId,
+        data: {
+          type: "meterstand",
+          timestamp: validated.initialOdometerDate.getTime(),
+          startOdometerKm: validated.initialOdometerKm,
+          tripType: "privé",
+          departure: { text: "Kilometerstand registratie" },
+          destination: { text: "Kilometerstand registratie" },
+          description: "Initiële kilometerstand bij instellingen",
+        } as any,
+      });
+    }
+
     // 7. Initialize settings
     const currentYear = new Date().getFullYear();
 

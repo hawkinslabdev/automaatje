@@ -180,10 +180,23 @@ export async function calculateOdometerForTrip(
       startOdometerKm = previousReading.odometerKm;
     }
 
-    // 6. Calculate end odometer (if distance is known)
+    // 6. Calculate end odometer
     let endOdometerKm: number | undefined;
+    
     if (tripDistanceKm && tripDistanceKm > 0) {
+      // Distance provided - add it to the start odometer
       endOdometerKm = startOdometerKm + tripDistanceKm;
+    } else if (nextReading && previousReading) {
+      // No distance but we have both readings - estimate based on time interpolation
+      // This handles cases where user creates trip without OSRM distance
+      const totalKm = nextReading.odometerKm - previousReading.odometerKm;
+      const totalTime = nextReading.timestamp - previousReading.timestamp;
+      const tripDuration = 3600000; // Assume 1 hour trip duration as default
+      const estimatedDistance = (totalKm * tripDuration) / totalTime;
+      
+      if (estimatedDistance > 0 && estimatedDistance < totalKm) {
+        endOdometerKm = startOdometerKm + estimatedDistance;
+      }
     }
 
     // 7. Round to whole kilometers (like real odometer)

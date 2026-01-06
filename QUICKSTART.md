@@ -40,3 +40,11 @@ When we've reached the first major version, you'll be able to use Docker to host
 Access the application at **http://localhost:3123**.
 
 The first user to register automatically becomes an administrator. Follow the on-screen setup wizard to configure your account.
+
+### PWA Generation
+
+For future reference, since we may change the icons:
+
+```bash
+cd /mnt/d/Repository/automaatje/automaatje && npx pwa-asset-generator public/pwa/icons/icon-512x512.png public/pwa --background "#6a93a0" --splash-only --type png --quality 100 --dark-mode false --index app/layout.tsx --manifest public/pwa/manifest.json
+```` 

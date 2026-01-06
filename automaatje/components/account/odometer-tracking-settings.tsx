@@ -92,8 +92,7 @@ export function OdometerTrackingSettings({
   const getLatestOdometer = (vehicleId: string) => {
     const meterstandEntries = getMeterstandEntriesForVehicle(vehicleId);
     if (meterstandEntries.length === 0) {
-      const details = vehicles.find(v => v.id === vehicleId)?.details;
-      return details?.initialOdometerKm || null;
+      return null;
     }
     const latest = meterstandEntries[0];
     return (latest.data as any).startOdometerKm;
@@ -103,11 +102,6 @@ export function OdometerTrackingSettings({
   const getNextReadingDate = (vehicleId: string, vehicleFreq: string) => {
     const meterstandEntries = getMeterstandEntriesForVehicle(vehicleId);
     if (meterstandEntries.length === 0) {
-      const details = vehicles.find(v => v.id === vehicleId)?.details;
-      if (details?.initialOdometerDate) {
-        const lastDate = new Date(details.initialOdometerDate);
-        return calculateNextDate(lastDate, vehicleFreq);
-      }
       return null;
     }
 

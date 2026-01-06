@@ -150,7 +150,8 @@ export const vehicles = sqliteTable("vehicles", {
     year?: number;
     detailsStatus?: "PENDING" | "READY" | "FAILED";
     fetchError?: string;
-    // Initial odometer reading for auto-calculate mode
+    // @deprecated No longer used - initial odometer is now stored as meterstand registration entry
+    // Kept for backward compatibility with existing data
     initialOdometerKm?: number;
     initialOdometerDate?: number; // Timestamp when initial reading was taken
   }>().notNull(),

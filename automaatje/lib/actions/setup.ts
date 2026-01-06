@@ -99,8 +99,6 @@ export async function completeSetup(data: SetupWizardData) {
       isEnabled: true,
       detailsStatus: plateValidation.vehicleData ? "COMPLETE" : "PENDING",
       kilometerstandTracking: validated.odometerFrequency || "niet_registreren",
-      initialOdometerKm: validated.initialOdometerKm,
-      initialOdometerDate: validated.initialOdometerDate?.getTime(),
     };
 
     // Add RDW vehicle data if available

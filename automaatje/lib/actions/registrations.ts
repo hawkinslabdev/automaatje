@@ -1593,18 +1593,17 @@ export async function getOdometerReadingsReport(options?: {
           (stats.vehicleStats[vehicleId].privateKilometers || 0) + data.privateDetourKm;
       }
 
+      // Sum up actual trip distances for totalDistance
+      stats.vehicleStats[vehicleId].totalDistance =
+        (stats.vehicleStats[vehicleId].totalDistance || 0) + tripDistance;
+
+      // Track odometer readings for reference
       if (odometer) {
         if (!stats.vehicleStats[vehicleId].firstReading || odometer < stats.vehicleStats[vehicleId].firstReading!) {
           stats.vehicleStats[vehicleId].firstReading = odometer;
         }
         if (!stats.vehicleStats[vehicleId].lastReading || odometer > stats.vehicleStats[vehicleId].lastReading!) {
           stats.vehicleStats[vehicleId].lastReading = odometer;
-        }
-
-        // Calculate total distance for this vehicle in period
-        if (stats.vehicleStats[vehicleId].firstReading && stats.vehicleStats[vehicleId].lastReading) {
-          stats.vehicleStats[vehicleId].totalDistance =
-            stats.vehicleStats[vehicleId].lastReading! - stats.vehicleStats[vehicleId].firstReading!;
         }
       }
     });

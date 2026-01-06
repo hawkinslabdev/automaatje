@@ -128,12 +128,27 @@ export async function completeRegistration(
         isMain: true,
         isEnabled: true,
         detailsStatus: "PENDING",
-        initialOdometerKm: validated.initialOdometerKm,
-        initialOdometerDate: validated.initialOdometerDate
-          ? Math.floor(validated.initialOdometerDate.getTime() / 1000)
-          : undefined,
       },
     });
+
+    // Create initial meterstand entry for auto-calculate mode
+    if (validated.odometerMode === "auto_calculate" && validated.initialOdometerKm && validated.initialOdometerDate) {
+      const meterstandId = nanoid();
+      await db.insert(schema.registrations).values({
+        id: meterstandId,
+        userId,
+        vehicleId,
+        data: {
+          type: "meterstand",
+          timestamp: validated.initialOdometerDate.getTime(),
+          startOdometerKm: validated.initialOdometerKm,
+          tripType: "privé",
+          departure: { text: "Kilometerstand registratie" },
+          destination: { text: "Kilometerstand registratie" },
+          description: "Initiële kilometerstand bij registratie",
+        } as any,
+      });
+    }
 
     // Auto-login the new user
     const session = await getSession();

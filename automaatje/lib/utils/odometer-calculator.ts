@@ -94,31 +94,6 @@ function findNextReading(
 }
 
 /**
- * Get initial odometer reading from vehicle details
- */
-async function getInitialOdometerReading(vehicleId: string): Promise<MeterstandEntry | null> {
-  const vehicle = await db.query.vehicles.findFirst({
-    where: eq(schema.vehicles.id, vehicleId),
-  });
-
-  if (!vehicle) {
-    return null;
-  }
-
-  const details = vehicle.details as any;
-
-  if (details.initialOdometerKm && details.initialOdometerDate) {
-    return {
-      id: `initial-${vehicle.id}`,
-      timestamp: details.initialOdometerDate,
-      odometerKm: details.initialOdometerKm,
-    };
-  }
-
-  return null;
-}
-
-/**
  * Calculate odometer readings for a trip using linear interpolation
  *
  * @param vehicleId - ID of the vehicle
@@ -133,25 +108,9 @@ export async function calculateOdometerForTrip(
 ): Promise<TripWithCalculatedOdometer | OdometerCalculationError> {
   try {
     // 1. Get all meterstand entries for this vehicle
-    let meterstandEntries = await getMeterstandEntries(vehicleId);
+    const meterstandEntries = await getMeterstandEntries(vehicleId);
 
-    // 2. Always include initial odometer from vehicle details if available
-    // This ensures the initial reading is considered alongside meterstand entries
-    const initialReading = await getInitialOdometerReading(vehicleId);
-    if (initialReading) {
-      // Add if it doesn't exist, or if it's earlier than all existing entries
-      const hasInitialEntry = meterstandEntries.some(
-        entry => entry.id === initialReading.id
-      );
-      
-      if (!hasInitialEntry) {
-        meterstandEntries.push(initialReading);
-        // Re-sort after adding initial reading
-        meterstandEntries.sort((a, b) => a.timestamp - b.timestamp);
-      }
-    }
-
-    // 3. Find the meterstand BEFORE and AFTER the trip
+    // 2. Find the meterstand BEFORE and AFTER the trip
     const previousReading = findPreviousReading(meterstandEntries, tripTimestamp);
     const nextReading = findNextReading(meterstandEntries, tripTimestamp);
 
@@ -180,23 +139,10 @@ export async function calculateOdometerForTrip(
       startOdometerKm = previousReading.odometerKm;
     }
 
-    // 6. Calculate end odometer
+    // 6. Calculate end odometer (if distance is known)
     let endOdometerKm: number | undefined;
-    
     if (tripDistanceKm && tripDistanceKm > 0) {
-      // Distance provided - add it to the start odometer
       endOdometerKm = startOdometerKm + tripDistanceKm;
-    } else if (nextReading && previousReading) {
-      // No distance but we have both readings - estimate based on time interpolation
-      // This handles cases where user creates trip without OSRM distance
-      const totalKm = nextReading.odometerKm - previousReading.odometerKm;
-      const totalTime = nextReading.timestamp - previousReading.timestamp;
-      const tripDuration = 3600000; // Assume 1 hour trip duration as default
-      const estimatedDistance = (totalKm * tripDuration) / totalTime;
-      
-      if (estimatedDistance > 0 && estimatedDistance < totalKm) {
-        endOdometerKm = startOdometerKm + estimatedDistance;
-      }
     }
 
     // 7. Round to whole kilometers (like real odometer)
@@ -224,22 +170,6 @@ export function isOdometerCalculationError(
   result: TripWithCalculatedOdometer | OdometerCalculationError
 ): result is OdometerCalculationError {
   return "code" in result && "message" in result;
-}
-
-/**
- * Validate that auto-calculate is possible for a vehicle
- * Returns true if the vehicle has sufficient meterstand data
- */
-export async function canAutoCalculateForVehicle(vehicleId: string): Promise<boolean> {
-  const meterstandEntries = await getMeterstandEntries(vehicleId);
-
-  if (meterstandEntries.length > 0) {
-    return true;
-  }
-
-  // Check for initial odometer reading
-  const initialReading = await getInitialOdometerReading(vehicleId);
-  return initialReading !== null;
 }
 
 /**

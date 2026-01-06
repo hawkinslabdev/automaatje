@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GalleryVerticalEnd } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { WizardStepIndicator } from "@/components/onboarding/wizard-step-indicator";
 import { WizardNavigation } from "@/components/onboarding/wizard-navigation";
 import { StepPersonalInfo } from "@/components/onboarding/step-personal-info";
@@ -51,6 +52,7 @@ interface WizardState {
 
 export default function SetupPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [state, setState] = useState<WizardState>({
     currentStep: 1,
     name: "",
@@ -80,15 +82,19 @@ export default function SetupPage() {
   const validateStep = (step: number): boolean => {
     setState((prev) => ({ ...prev, errors: {} }));
 
+    console.log(`[validateStep] Validating step ${step}`);
+
     try {
       switch (step) {
         case 1:
+          console.log('[validateStep] Step 1 - Personal Info:', { name: state.name, email: state.email });
           personalInfoSchema.parse({
             name: state.name,
             email: state.email,
           });
           break;
         case 2:
+          console.log('[validateStep] Step 2 - Location:', { locationText: state.locationText });
           locationSchema.parse({
             locationText: state.locationText,
             locationLat: state.locationLat,
@@ -96,6 +102,11 @@ export default function SetupPage() {
           });
           break;
         case 3:
+          console.log('[validateStep] Step 3 - Vehicle:', { 
+            licensePlate: state.licensePlate, 
+            vehicleType: state.vehicleType,
+            vehicleName: state.vehicleName 
+          });
           vehicleSetupSchema.parse({
             licensePlate: state.licensePlate,
             vehicleType: state.vehicleType,
@@ -103,6 +114,10 @@ export default function SetupPage() {
           });
           break;
         case 4:
+          console.log('[validateStep] Step 4 - Odometer:', { 
+            odometerMode: state.odometerMode,
+            odometerFrequency: state.odometerFrequency 
+          });
           odometerTrackingSchema.parse({
             odometerMode: state.odometerMode,
             odometerFrequency: state.odometerFrequency,
@@ -111,27 +126,44 @@ export default function SetupPage() {
           });
           break;
         case 5:
+          console.log('[validateStep] Step 5 - Mileage Rates:', { rateType: state.rateType });
           mileageRatesSchema.parse({
             rateType: state.rateType,
             customRate: state.rateType === "custom" ? state.customRate : undefined,
           });
           break;
         case 6:
+          console.log('[validateStep] Step 6 - Account:', { password: '***', confirmPassword: '***' });
           accountSetupSchema.parse({
             password: state.password,
             confirmPassword: state.confirmPassword,
           });
           break;
       }
+      console.log(`[validateStep] Step ${step} validation PASSED ✅`);
       return true;
     } catch (error: any) {
+      console.error(`[validateStep] Step ${step} validation FAILED ❌`, error);
+      
       if (error.errors) {
         const fieldErrors: Record<string, string> = {};
+        const errorMessages: string[] = [];
+        
         error.errors.forEach((err: any) => {
           const field = err.path[0];
           fieldErrors[field] = err.message;
+          errorMessages.push(`${field}: ${err.message}`);
+          console.error(`  - Field "${field}": ${err.message}`);
         });
+        
         setState((prev) => ({ ...prev, errors: fieldErrors }));
+        
+        // Show toast notification
+        toast({
+          title: "Validatiefout",
+          description: errorMessages.join(', '),
+          variant: "destructive",
+        });
       }
       return false;
     }

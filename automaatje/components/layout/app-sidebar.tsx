@@ -171,9 +171,11 @@ export function AppSidebar({
 
         <SidebarGroup className="mt-auto">
           <SidebarMenu>
-            {sidebarData.system.map((item) => (
-              <CollapsibleMenuItem key={item.title} item={item} pathname={pathname} />
-            ))}
+            {sidebarData.system
+              .filter((item) => item.title !== "Instellingen" || user.role === "ADMIN")
+              .map((item) => (
+                <CollapsibleMenuItem key={item.title} item={item} pathname={pathname} />
+              ))}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

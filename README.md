@@ -65,7 +65,7 @@ If this saves you time, stress, or a spreadsheet, feel free to buy me a coffee o
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
+This project is licensed under the **AGPL 3.0** license. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 

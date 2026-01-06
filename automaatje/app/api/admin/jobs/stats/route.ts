@@ -3,6 +3,9 @@ import { db, schema } from "@/lib/db/standalone";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth/session";
 
+// Force dynamic rendering to prevent build-time database access
+export const dynamic = 'force-dynamic';
+
 /**
  * Get simple job statistics
  * Requires admin role

@@ -423,6 +423,7 @@ export function TripRegistrationForm({
                   value={timestamp}
                   onChange={(e) => setTimestamp(e.target.value)}
                   required
+                  className="text-base"
                 />
               </div>
 

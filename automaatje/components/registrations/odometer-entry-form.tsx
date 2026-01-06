@@ -154,6 +154,7 @@ export function OdometerEntryForm({
               value={timestamp}
               onChange={(e) => setTimestamp(e.target.value)}
               required
+              className="text-base"
             />
             <p className="text-sm text-muted-foreground">
               Wanneer heb je de kilometerstand afgelezen?

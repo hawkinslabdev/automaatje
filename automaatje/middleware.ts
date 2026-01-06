@@ -7,8 +7,9 @@ import { cookies } from "next/headers";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for /setup - let the route handle setup logic
-  if (pathname === "/setup") {
+  // Skip middleware for /setup - the setup layout handles protection
+  // The layout will check if setup is required and redirect if not
+  if (pathname.startsWith("/setup")) {
     return NextResponse.next();
   }
 

@@ -10,16 +10,16 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full flex-col lg:flex-row">
       {/* Desktop Sidebar Navigation */}
-      <aside className="hidden w-64 border-r bg-muted/10 lg:block">
+      <aside className="hidden w-64 shrink-0 border-r bg-muted/10 lg:block">
         <div className="sticky top-0 space-y-6 p-6">
           <AccountNav />
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-8">
+      <main className="min-w-0 flex-1 p-4 lg:p-8">
         {/* Mobile Menu Button */}
         <div className="mb-4 lg:hidden">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>

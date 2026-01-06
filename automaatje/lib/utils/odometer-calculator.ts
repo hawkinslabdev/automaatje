@@ -29,34 +29,33 @@ export interface OdometerCalculationError {
 }
 
 /**
- * Get all meterstand entries for a vehicle, sorted by timestamp
+ * Get all meterstand entries for a vehicle
+ * Only returns actual meterstand readings (not trips)
+ * Sorted by timestamp
  */
 async function getMeterstandEntries(vehicleId: string): Promise<MeterstandEntry[]> {
   const registrations = await db.query.registrations.findMany({
     where: eq(schema.registrations.vehicleId, vehicleId),
   });
 
-  // Filter to only meterstand entries
-  const meterstandEntries = registrations
-    .filter(reg => {
-      const data = reg.data as any;
-      return (
-        data.type === "meterstand" ||
+  const meterstandEntries: MeterstandEntry[] = [];
+
+  registrations.forEach(reg => {
+    const data = reg.data as any;
+    
+    // Only include actual meterstand entries
+    if (data.type === "meterstand" ||
         (data.departure?.text === "Kilometerstand registratie" &&
-         data.destination?.text === "Kilometerstand registratie")
-      );
-    })
-    .map(reg => {
-      const data = reg.data as any;
-      return {
+         data.destination?.text === "Kilometerstand registratie")) {
+      meterstandEntries.push({
         id: reg.id,
         timestamp: data.timestamp,
         odometerKm: data.startOdometerKm,
-      };
-    })
-    .sort((a, b) => a.timestamp - b.timestamp);
+      });
+    }
+  });
 
-  return meterstandEntries;
+  return meterstandEntries.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 /**

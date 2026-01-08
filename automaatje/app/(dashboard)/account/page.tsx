@@ -34,7 +34,7 @@ export default async function AccountPage() {
 
       {/* Profile Header */}
       <Card>
-        <CardContent className="flex items-center gap-6 p-6">
+        <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:gap-6">
           <div className="relative">
             <UserAvatar
               name={name}
@@ -43,16 +43,16 @@ export default async function AccountPage() {
             />
             <AvatarSelector currentSeed={avatarSeed} userName={name} />
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold">{name || "Geen naam"}</h2>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <h2 className="text-xl font-bold break-words sm:text-2xl">{name || "Geen naam"}</h2>
               <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
                 {user.role === "ADMIN" ? "Beheerder" : "Gebruiker"}
               </Badge>
             </div>
-            <p className="text-muted-foreground">{user.email}</p>
+            <p className="text-muted-foreground break-all text-sm sm:text-base">{user.email}</p>
             {location?.text && (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground break-words">
                 📍 {location.text}
               </p>
             )}
@@ -74,19 +74,19 @@ export default async function AccountPage() {
               <label className="text-sm font-medium text-muted-foreground">
                 Volledige naam
               </label>
-              <p className="text-base">{name || "Niet ingesteld"}</p>
+              <p className="text-base break-words">{name || "Niet ingesteld"}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">
                 E-mailadres
               </label>
-              <p className="text-base">{user.email}</p>
+              <p className="text-base break-all">{user.email}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">
                 Locatie
               </label>
-              <p className="text-base">
+              <p className="text-base break-words">
                 {location?.text || "Niet ingesteld"}
               </p>
             </div>

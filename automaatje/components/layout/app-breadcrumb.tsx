@@ -28,6 +28,7 @@ const navigationMap: Record<string, BreadcrumbSegment> = {
   "/registraties/overzicht": { title: "Overzicht", href: "/registraties/overzicht" },
   "/registraties/nieuw": { title: "Nieuwe rit", href: "/registraties/nieuw" },
   "/registraties/meterstand": { title: "Kilometerstand opslaan", href: "/registraties/meterstand" },
+  "/registraties/bewerken": { title: "Bewerken", href: "/registraties/bewerken" },
 
   "/inbox": { title: "Meldingen", href: "/inbox", icon: Inbox },
   "/inbox/archief": { title: "Archief", href: "/inbox/archief" },
@@ -55,6 +56,7 @@ const parentMap: Record<string, string> = {
   "/registraties/overzicht": "/registraties",
   "/registraties/nieuw": "/registraties",
   "/registraties/meterstand": "/registraties",
+  "/registraties/bewerken": "/registraties/overzicht",
 
   // Garage
   "/garage": "/dashboard",
@@ -73,6 +75,13 @@ const parentMap: Record<string, string> = {
 function normalizePath(pathname: string) {
   if (!pathname) return "/dashboard";
   const noTrailing = pathname === "/" ? "/dashboard" : pathname.replace(/\/$/, "");
+
+  // Handle dynamic routes
+  // Match /registraties/bewerken/[id] -> /registraties/bewerken
+  if (noTrailing.match(/^\/registraties\/bewerken\/[^/]+$/)) {
+    return "/registraties/bewerken";
+  }
+
   return noTrailing || "/dashboard";
 }
 

@@ -1444,6 +1444,109 @@ export async function deleteRegistration(registrationId: string) {
 }
 
 /**
+ * Get a single registration by ID with vehicle details
+ * Used for edit page to pre-populate form
+ */
+export async function getRegistrationById(registrationId: string) {
+  try {
+    const session = await requireAuth();
+
+    // Fetch registration with vehicle and shares
+    const registration = await db.query.registrations.findFirst({
+      where: eq(schema.registrations.id, registrationId),
+      with: {
+        vehicle: {
+          with: {
+            shares: true,
+          },
+        },
+      },
+    });
+
+    if (!registration) {
+      return { success: false, error: "Registratie niet gevonden" };
+    }
+
+    // Check if user owns registration or has access via share
+    const isOwner = registration.userId === session.userId;
+    const hasAccess = registration.vehicle.shares.some(
+      (share) => share.sharedWithUserId === session.userId
+    );
+
+    if (!isOwner && !hasAccess) {
+      return { success: false, error: "Geen toegang tot deze registratie" };
+    }
+
+    return { success: true, data: registration };
+  } catch (error) {
+    console.error("Get registration error:", error);
+    return { success: false, error: "Kon registratie niet ophalen" };
+  }
+}
+
+/**
+ * Check if a registration can be edited
+ * Validates user access and time restrictions
+ */
+export async function canEditRegistration(registrationId: string) {
+  try {
+    const session = await requireAuth();
+
+    // Fetch registration
+    const registration = await db.query.registrations.findFirst({
+      where: eq(schema.registrations.id, registrationId),
+      with: {
+        vehicle: {
+          with: {
+            shares: true,
+          },
+        },
+      },
+    });
+
+    if (!registration) {
+      return { success: false, canEdit: false, reason: "Registratie niet gevonden" };
+    }
+
+    // Check if user owns registration or has access via share
+    const isOwner = registration.userId === session.userId;
+    const hasAccess = registration.vehicle.shares.some(
+      (share) => share.sharedWithUserId === session.userId
+    );
+
+    if (!isOwner && !hasAccess) {
+      return { success: false, canEdit: false, reason: "Geen toegang tot deze registratie" };
+    }
+
+    // Check time restrictions
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, session.userId!),
+    });
+
+    const preferences = user?.metadata?.preferences?.editRestrictions;
+
+    if (preferences?.enabled) {
+      const registrationData = registration.data as any;
+      const registrationAge = Date.now() - registrationData.timestamp;
+      const maxAge = (preferences.maxDaysBack || 30) * 24 * 60 * 60 * 1000;
+
+      if (registrationAge > maxAge) {
+        return {
+          success: true,
+          canEdit: false,
+          reason: `Deze registratie is ouder dan ${preferences.maxDaysBack || 30} dagen en kan niet meer worden bewerkt.`,
+        };
+      }
+    }
+
+    return { success: true, canEdit: true };
+  } catch (error) {
+    console.error("Can edit registration error:", error);
+    return { success: false, canEdit: false, reason: "Kon bewerkingsrechten niet controleren" };
+  }
+}
+
+/**
  * Get available periods (years and months) that contain registrations
  * Used to populate the period selector dropdown
  */
@@ -1632,21 +1735,45 @@ export async function getOdometerReadingsReport(options?: {
 
 /**
  * Update a registration
+ * Enhanced with time restrictions and odometer chronology validation
  */
 export async function updateRegistration(registrationId: string, formData: FormData) {
   try {
     const session = await requireAuth();
 
-    // Verify registration belongs to user
+    // Verify registration belongs to user and check edit permissions
     const existing = await db.query.registrations.findFirst({
       where: and(
         eq(schema.registrations.id, registrationId),
         eq(schema.registrations.userId, session.userId!)
       ),
+      with: {
+        vehicle: {
+          with: {
+            shares: true,
+          },
+        },
+      },
     });
 
     if (!existing) {
       return { success: false, error: "Registratie niet gevonden" };
+    }
+
+    // Check edit permissions (time restrictions)
+    const editCheck = await canEditRegistration(registrationId);
+    if (!editCheck.canEdit) {
+      return { success: false, error: editCheck.reason || "Kan registratie niet bewerken" };
+    }
+
+    // Check vehicle access
+    const isOwner = existing.vehicle.userId === session.userId;
+    const hasAccess = existing.vehicle.shares.some(
+      (share) => share.sharedWithUserId === session.userId
+    );
+
+    if (!isOwner && !hasAccess) {
+      return { success: false, error: "Geen toegang tot dit voertuig" };
     }
 
     const rawData = {
@@ -1677,6 +1804,91 @@ export async function updateRegistration(registrationId: string, formData: FormD
     // Validate input
     const validated = createRegistrationSchema.parse(rawData);
 
+    // Validate end odometer is higher than start odometer
+    if (validated.endOdometerKm && validated.endOdometerKm <= validated.startOdometerKm) {
+      return {
+        success: false,
+        error: "Eindstand moet hoger zijn dan de beginstand",
+      };
+    }
+
+    // Detect if vehicle was changed (for enhanced error messages)
+    const vehicleChanged = existing.vehicleId !== validated.vehicleId;
+
+    // Check if odometer is chronologically valid (re-validate against neighbors)
+    // Get all registrations for this vehicle EXCEPT the current one being edited
+    const allRegistrations = await db.query.registrations.findMany({
+      where: and(
+        eq(schema.registrations.userId, session.userId!),
+        eq(schema.registrations.vehicleId, validated.vehicleId)
+      ),
+    });
+
+    // Filter to trip entries only, excluding the current registration being edited
+    const tripRegistrations = allRegistrations
+      .filter(reg => reg.id !== registrationId && !isMeterstandEntry(reg))
+      .map(reg => ({
+        ...reg,
+        timestamp: (reg.data as any).timestamp
+      }))
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    // Find the previous registration (chronologically before this one)
+    const previousRegistration = tripRegistrations.find(
+      reg => reg.timestamp < validated.timestamp.getTime()
+    );
+
+    if (previousRegistration) {
+      const prevData = previousRegistration.data as any;
+      const prevOdometer = prevData.endOdometerKm || prevData.startOdometerKm || prevData.odometerKm;
+
+      if (prevOdometer && validated.startOdometerKm < prevOdometer) {
+        // Enhanced error message when vehicle was changed
+        const errorMsg = vehicleChanged
+          ? `Voertuig gewijzigd: kilometerstand ${validated.startOdometerKm.toLocaleString('nl-NL')} km is te laag voor dit voertuig. De vorige registratie van dit voertuig heeft ${prevOdometer.toLocaleString('nl-NL')} km. Pas de kilometerstand aan voor het nieuwe voertuig.`
+          : `Kilometerstand moet hoger zijn dan de vorige registratie (${prevOdometer.toLocaleString('nl-NL')} km)`;
+
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+    }
+
+    // Find the next registration (chronologically after this one)
+    const nextRegistration = tripRegistrations
+      .filter(reg => reg.timestamp > validated.timestamp.getTime())
+      .sort((a, b) => a.timestamp - b.timestamp)[0];
+
+    if (nextRegistration) {
+      const nextData = nextRegistration.data as any;
+      const nextOdometer = nextData.startOdometerKm || nextData.odometerKm;
+
+      if (nextOdometer && validated.startOdometerKm > nextOdometer) {
+        // Enhanced error message when vehicle was changed
+        const errorMsg = vehicleChanged
+          ? `Voertuig gewijzigd: kilometerstand ${validated.startOdometerKm.toLocaleString('nl-NL')} km is te hoog voor dit voertuig. De volgende registratie van dit voertuig heeft ${nextOdometer.toLocaleString('nl-NL')} km. Pas de kilometerstand aan voor het nieuwe voertuig.`
+          : `Kilometerstand moet lager zijn dan de volgende registratie (${nextOdometer.toLocaleString('nl-NL')} km)`;
+
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+
+      // Also check end odometer if provided
+      if (validated.endOdometerKm && nextOdometer && validated.endOdometerKm > nextOdometer) {
+        const errorMsg = vehicleChanged
+          ? `Voertuig gewijzigd: eindstand ${validated.endOdometerKm.toLocaleString('nl-NL')} km is te hoog voor dit voertuig. De volgende registratie heeft ${nextOdometer.toLocaleString('nl-NL')} km. Pas de kilometerstand aan voor het nieuwe voertuig.`
+          : `Eindstand moet lager zijn dan de volgende registratie (${nextOdometer.toLocaleString('nl-NL')} km)`;
+
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+    }
+
     // Calculate distance from odometer if not provided
     let calculatedDistance = validated.distanceKm;
     let calculationMethod = validated.calculationMethod;
@@ -1685,6 +1897,13 @@ export async function updateRegistration(registrationId: string, formData: FormD
       calculatedDistance = validated.endOdometerKm - validated.startOdometerKm;
       calculationMethod = "odometer";
     }
+
+    // Preserve existing data that shouldn't be overwritten
+    const existingData = existing.data as any;
+
+    // Clear auto-calculation flags when manually editing
+    const odometerCalculated = false;
+    const calculationBasedOn = undefined;
 
     // Update registration
     await db
@@ -1703,9 +1922,18 @@ export async function updateRegistration(registrationId: string, formData: FormD
           description: validated.description,
           alternativeRoute: validated.alternativeRoute,
           privateDetourKm: validated.privateDetourKm || undefined,
-          linkedTripId: validated.linkedTripId,
-          tripDirection: validated.tripDirection,
+          linkedTripId: validated.linkedTripId || existingData.linkedTripId,
+          tripDirection: validated.tripDirection || existingData.tripDirection,
+          // Clear auto-calculation metadata
+          odometerCalculated,
+          calculationBasedOn,
+          // Preserve other fields
+          isIncomplete: existingData.isIncomplete,
+          organizationId: existingData.organizationId,
+          labelIds: existingData.labelIds,
+          customFields: existingData.customFields,
         },
+        updatedAt: new Date(),
       })
       .where(eq(schema.registrations.id, registrationId));
 

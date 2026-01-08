@@ -114,6 +114,12 @@ export const users = sqliteTable("users", {
         notificationsEnabled?: boolean;                // Default: true
       };
 
+      // Edit restrictions preferences
+      editRestrictions?: {
+        enabled?: boolean;                             // Default: true (restrictions enabled)
+        maxDaysBack?: number;                          // Default: 30 days
+      };
+
       // Other general preferences
       [key: string]: unknown;
     };

@@ -2,11 +2,20 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Car, MapPin, Calendar, Gauge, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Car, MapPin, Calendar, Gauge, FileText, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { formatDutchDateTime, formatDistance } from "@/lib/utils";
+import { deleteRegistration } from "@/lib/actions/registrations";
 
 interface TripCardProps {
   trip: {
@@ -36,6 +45,8 @@ interface TripCardProps {
 
 export function TripCard({ trip, className }: TripCardProps) {
   const { data, vehicle, timestamp } = trip;
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Format vehicle display
   const vehicleName = vehicle.details.naamVoertuig ||
@@ -50,6 +61,31 @@ export function TripCard({ trip, className }: TripCardProps) {
   const tripTypeVariant = data.tripType === "zakelijk" ? "default" : "secondary";
   const tripTypeLabel = data.tripType === "zakelijk" ? "Zakelijk" : "Privé";
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/registraties/bewerken/${trip.id}`);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!confirm("Weet je zeker dat je deze registratie wilt verwijderen?")) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const result = await deleteRegistration(trip.id);
+
+    if (result.success) {
+      router.refresh();
+    } else {
+      alert(result.error || "Kon registratie niet verwijderen");
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Link href={`/registraties/overzicht/${trip.id}`} className="block">
       <Card className={cn(
@@ -57,7 +93,7 @@ export function TripCard({ trip, className }: TripCardProps) {
         className
       )}>
         <CardContent className="p-4">
-          {/* Header: Vehicle & Badge */}
+          {/* Header: Vehicle, Badge & Actions */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <Car className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -65,11 +101,36 @@ export function TripCard({ trip, className }: TripCardProps) {
                 {vehicleName}
               </span>
             </div>
-            {data.tripType && (
-              <Badge variant={tripTypeVariant} className="shrink-0 text-xs">
-                {tripTypeLabel}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {data.tripType && (
+                <Badge variant={tripTypeVariant} className="text-xs">
+                  {tripTypeLabel}
+                </Badge>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={isDeleting}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Acties</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Bewerken
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDelete} disabled={isDeleting}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? "Verwijderen..." : "Verwijderen"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Route or Odometer Info */}

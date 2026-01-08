@@ -275,12 +275,12 @@ export function NotificationSettingsClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="email-enabled">E-mail notificaties inschakelen</Label>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="email-enabled" className="text-sm">E-mail notificaties inschakelen</Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div>
+                  <div className="shrink-0">
                     <Switch
                       id="email-enabled"
                       checked={emailEnabled}
@@ -334,8 +334,8 @@ export function NotificationSettingsClient({
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <Button onClick={handleSaveEmail} disabled={isPending}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={handleSaveEmail} disabled={isPending} className="w-full sm:w-auto">
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Opslaan
                 </Button>
@@ -343,6 +343,7 @@ export function NotificationSettingsClient({
                   variant="outline"
                   onClick={handleTestEmail}
                   disabled={isPending}
+                  className="w-full sm:w-auto"
                 >
                   Test e-mail verzenden
                 </Button>
@@ -364,12 +365,13 @@ export function NotificationSettingsClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="webhook-enabled">Webhook notificaties inschakelen</Label>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="webhook-enabled" className="text-sm">Webhook notificaties inschakelen</Label>
             <Switch
               id="webhook-enabled"
               checked={webhookEnabled}
               onCheckedChange={setWebhookEnabled}
+              className="shrink-0"
             />
           </div>
 
@@ -421,8 +423,8 @@ export function NotificationSettingsClient({
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <Button onClick={handleSaveWebhook} disabled={isPending}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={handleSaveWebhook} disabled={isPending} className="w-full sm:w-auto">
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Opslaan
                 </Button>
@@ -430,6 +432,7 @@ export function NotificationSettingsClient({
                   variant="outline"
                   onClick={handleTestWebhook}
                   disabled={isPending || !webhookUrl}
+                  className="w-full sm:w-auto"
                 >
                   Test verzenden
                 </Button>
@@ -451,12 +454,13 @@ export function NotificationSettingsClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="apprise-enabled">Apprise notificaties inschakelen</Label>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="apprise-enabled" className="text-sm">Apprise notificaties inschakelen</Label>
             <Switch
               id="apprise-enabled"
               checked={appriseEnabled}
               onCheckedChange={setAppriseEnabled}
+              className="shrink-0"
             />
           </div>
 
@@ -465,18 +469,20 @@ export function NotificationSettingsClient({
               <Separator />
               <div className="space-y-2">
                 <Label htmlFor="apprise-url">Service URL toevoegen</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     id="apprise-url"
                     type="text"
                     value={newAppriseUrl}
                     onChange={(e) => setNewAppriseUrl(e.target.value)}
                     placeholder="discord://webhook_id/token"
+                    className="flex-1"
                   />
                   <Button
                     variant="outline"
                     onClick={handleAddAppriseUrl}
                     disabled={!newAppriseUrl}
+                    className="w-full sm:w-auto shrink-0"
                   >
                     Toevoegen
                   </Button>
@@ -493,13 +499,14 @@ export function NotificationSettingsClient({
                     {appriseUrls.map((url) => (
                       <div
                         key={url}
-                        className="flex items-center justify-between rounded-md border p-2"
+                        className="flex items-center justify-between gap-2 rounded-md border p-2"
                       >
-                        <code className="text-sm">{url.substring(0, 50)}...</code>
+                        <code className="min-w-0 flex-1 truncate text-sm">{url}</code>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveAppriseUrl(url)}
+                          className="shrink-0"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -509,8 +516,8 @@ export function NotificationSettingsClient({
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <Button onClick={handleSaveApprise} disabled={isPending}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={handleSaveApprise} disabled={isPending} className="w-full sm:w-auto">
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Opslaan
                 </Button>
@@ -518,6 +525,7 @@ export function NotificationSettingsClient({
                   variant="outline"
                   onClick={handleTestApprise}
                   disabled={isPending || appriseUrls.length === 0}
+                  className="w-full sm:w-auto"
                 >
                   Test verzenden
                 </Button>

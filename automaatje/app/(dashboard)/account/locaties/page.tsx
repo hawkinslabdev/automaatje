@@ -58,19 +58,21 @@ export default async function LocatiesPage() {
 
       {/* Home Address */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">Thuisadres</h2>
             <p className="text-sm text-muted-foreground">
               Je thuisadres voor afstandsberekeningen
             </p>
           </div>
           {homeAddress && (
-            <EditHomeAddressDialog
-              currentAddress={homeAddress.text}
-              currentLat={homeAddress.lat}
-              currentLon={homeAddress.lon}
-            />
+            <div className="shrink-0">
+              <EditHomeAddressDialog
+                currentAddress={homeAddress.text}
+                currentLat={homeAddress.lat}
+                currentLon={homeAddress.lon}
+              />
+            </div>
           )}
         </div>
 
@@ -106,14 +108,16 @@ export default async function LocatiesPage() {
 
       {/* Favorite Work Locations */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">Voorkeurslocaties</h2>
             <p className="text-sm text-muted-foreground">
               Vaak bezochte werklocaties voor snelle ritregistratie
             </p>
           </div>
-          <AddLocationDialog />
+          <div className="shrink-0">
+            <AddLocationDialog />
+          </div>
         </div>
 
         {favoriteLocations.length > 0 ? (

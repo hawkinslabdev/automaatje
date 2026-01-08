@@ -33,14 +33,16 @@ export default async function LabelsPage() {
 
       {/* Labels List */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">Categorieën</h2>
             <p className="text-sm text-muted-foreground">
               Labels voor het organiseren en filteren van ritten
             </p>
           </div>
-          <AddLabelDialog />
+          <div className="shrink-0">
+            <AddLabelDialog />
+          </div>
         </div>
 
         {labels.length > 0 ? (

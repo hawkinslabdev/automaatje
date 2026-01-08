@@ -27,8 +27,8 @@ export default async function VoertuigenPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1 space-y-1">
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5" />
                 Je garage
@@ -37,7 +37,7 @@ export default async function VoertuigenPage() {
                 Alle voertuiginstellingen worden beheerd in de garage
               </CardDescription>
             </div>
-            <Car className="h-12 w-12 text-muted-foreground opacity-20" />
+            <Car className="hidden h-12 w-12 shrink-0 text-muted-foreground opacity-20 sm:block" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -56,15 +56,15 @@ export default async function VoertuigenPage() {
             Hier stel je ook kentekens, brandstoftypes en andere voertuiggegevens in.
           </p>
 
-          <div className="flex gap-3">
-            <Button asChild>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/garage">
                 <Car className="mr-2 h-4 w-4" />
                 Ga naar garage
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link href="/garage/nieuw">
                 <Plus className="mr-2 h-4 w-4" />
                 Nieuw voertuig

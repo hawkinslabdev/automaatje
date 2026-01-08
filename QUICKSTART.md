@@ -46,5 +46,5 @@ The first user to register automatically becomes an administrator. Follow the on
 For future reference, since we may change the icons:
 
 ```bash
-cd /mnt/d/Repository/automaatje/automaatje && npx pwa-asset-generator public/pwa/icons/icon-512x512.png public/pwa --background "#6a93a0" --splash-only --type png --quality 100 --dark-mode false --index app/layout.tsx --manifest public/pwa/manifest.json
+npx pwa-asset-generator public/pwa/icons/icon-512x512.png public/pwa --background "#6a93a0" --splash-only --type png --quality 100 --dark-mode false --index app/layout.tsx --manifest public/pwa/manifest.json
 ```` 

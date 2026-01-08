@@ -98,12 +98,12 @@ export default async function KilometertarievenPage() {
             {rates.rates.map((rate, index) => (
               <div
                 key={`${rate.country}-${rate.year}`}
-                className={`flex items-center justify-between rounded-lg border p-4 ${
+                className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
                   index === 0 && isUsingStandardRates ? "border-primary bg-primary/5" : ""
                 }`}
               >
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">
                       {rate.country === "NL" ? "Nederland" : rate.country}
                     </span>
@@ -116,12 +116,12 @@ export default async function KilometertarievenPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-muted-foreground break-words">
                     {rate.description}
                   </p>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">
+                <div className="shrink-0 text-left sm:text-right">
+                  <div className="text-xl font-bold sm:text-2xl">
                     € {rate.businessRate.toFixed(2).replace(".", ",")}
                   </div>
                   <div className="text-sm text-muted-foreground">per km</div>

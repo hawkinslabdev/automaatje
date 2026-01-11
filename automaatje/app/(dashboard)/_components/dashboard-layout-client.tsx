@@ -20,6 +20,8 @@ interface DashboardLayoutClientProps {
   };
   version: string;
   userIsAdmin: boolean;
+  isLiveTrackingActive?: boolean;
+  showLiveOnDesktop?: boolean;
   children: React.ReactNode;
 }
 
@@ -27,6 +29,8 @@ export function DashboardLayoutClient({
   user,
   version,
   userIsAdmin,
+  isLiveTrackingActive = false,
+  showLiveOnDesktop = false,
   children,
 }: DashboardLayoutClientProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -48,7 +52,7 @@ export function DashboardLayoutClient({
           userIsAdmin={userIsAdmin}
         />
         <SidebarProvider>
-          <AppSidebar user={user} version={version} unreadCount={unreadCount} />
+          <AppSidebar user={user} version={version} unreadCount={unreadCount} showLiveOnDesktop={showLiveOnDesktop} />
           <SidebarInset>
             <SiteHeader onSearchClick={() => setCommandPaletteOpen(true)} />
             <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
@@ -84,6 +88,7 @@ export function DashboardLayoutClient({
         <MobileBottomNav
           unreadCount={unreadCount}
           onMoreClick={() => setMoreMenuOpen(true)}
+          isLiveTrackingActive={isLiveTrackingActive}
         />
       </div>
     </>

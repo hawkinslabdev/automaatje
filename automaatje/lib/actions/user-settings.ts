@@ -110,3 +110,59 @@ export async function updateVehicleOdometerTracking(
     };
   }
 }
+
+/**
+ * Update user's experimental settings
+ */
+export async function updateExperimentalSettings(settings: {
+  showPrivateDetourKm?: boolean;
+  showLiveOnDesktop?: boolean;
+}) {
+  try {
+    const session = await requireAuth();
+
+    // Get current user
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, session.userId!),
+    });
+
+    if (!user) {
+      return { success: false, error: "Gebruiker niet gevonden" };
+    }
+
+    // Update metadata with new experimental settings
+    const currentMetadata = user.metadata || {};
+    const currentPreferences = currentMetadata.preferences || {};
+
+    const updatedMetadata = {
+      ...currentMetadata,
+      preferences: {
+        ...currentPreferences,
+        experimental: {
+          ...(currentPreferences.experimental || {}),
+          showPrivateDetourKm: settings.showPrivateDetourKm ?? false,
+          showLiveOnDesktop: settings.showLiveOnDesktop ?? false,
+        },
+      },
+    };
+
+    await db
+      .update(schema.users)
+      .set({
+        metadata: updatedMetadata,
+      })
+      .where(eq(schema.users.id, session.userId!));
+
+    revalidatePath("/account/experimenteel");
+    revalidatePath("/registraties/nieuw");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update experimental settings error:", error);
+    return {
+      success: false,
+      error: "Kon instellingen niet opslaan",
+    };
+  }
+}

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, List, Plus, X, Car, MoreHorizontal, Route, Gauge, FileText, Radio, BarChart3 } from "lucide-react";
+import { Home, List, Plus, X, Car, MoreHorizontal, Route, Gauge, FileText, BarChart3, Navigation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 interface MobileBottomNavProps {
   unreadCount?: number;
   onMoreClick?: () => void;
+  isLiveTrackingActive?: boolean;
 }
 
 const navItems = [
@@ -67,7 +68,7 @@ const navItems = [
   },
 ] as const;
 
-export function MobileBottomNav({ unreadCount = 0, onMoreClick }: MobileBottomNavProps) {
+export function MobileBottomNav({ unreadCount = 0, onMoreClick, isLiveTrackingActive = false }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [fabMenuOpen, setFabMenuOpen] = React.useState(false);
@@ -134,12 +135,19 @@ export function MobileBottomNav({ unreadCount = 0, onMoreClick }: MobileBottomNa
                   >
                     <div
                       className={cn(
-                        "flex h-20 w-20 -translate-y-4 items-center justify-center rounded-full shadow-xl transition-all duration-200",
+                        "relative flex h-20 w-20 -translate-y-4 items-center justify-center rounded-full shadow-xl transition-all duration-200",
                         "bg-primary text-primary-foreground",
                         "hover:shadow-2xl active:scale-95",
                         fabMenuOpen && "shadow-2xl rotate-90 scale-105"
                       )}
                     >
+                      {/* Live tracking indicator */}
+                      {isLiveTrackingActive && !fabMenuOpen && (
+                        <span className="absolute -right-1 -top-1 flex h-4 w-4">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                          <span className="relative inline-flex h-4 w-4 rounded-full bg-green-500" />
+                        </span>
+                      )}
                       {fabMenuOpen ? (
                         <X className="h-8 w-8 transition-transform duration-200" />
                       ) : (
@@ -155,13 +163,16 @@ export function MobileBottomNav({ unreadCount = 0, onMoreClick }: MobileBottomNa
                   sideOffset={12}
                 >
                   <DropdownMenuItem
-                    disabled
-                    className="flex items-center gap-3 py-3 cursor-not-allowed opacity-50"
+                    onClick={() => {
+                      setFabMenuOpen(false);
+                      router.push("/registraties/live");
+                    }}
+                    className="flex items-center gap-3 py-3 cursor-pointer"
                   >
-                    <Radio className="h-5 w-5 shrink-0" />
+                    <Navigation className="h-5 w-5 shrink-0" />
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">Start met live registreren</span>
-                      <span className="text-xs text-muted-foreground">Binnenkort beschikbaar</span>
+                      <span className="text-xs text-muted-foreground">Registreer direct een rit vanaf vertrek</span>
                     </div>
                   </DropdownMenuItem>
 

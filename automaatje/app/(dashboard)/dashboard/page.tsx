@@ -19,9 +19,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ActionItemsBanner } from "@/components/registrations/action-items-banner";
+import { ActiveTripCard } from "@/components/dashboard/active-trip-card";
 import { MileageContributionGraph } from "@/components/dashboard/mileage-contribution-graph";
 import { MonthlyKilometersChart } from "@/components/dashboard/monthly-kilometers-chart";
 import { YearlyPrivateKilometersChart } from "@/components/dashboard/yearly-private-kilometers-chart";
+import { db, schema } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
 
 // Force dynamic rendering - this page requires authentication
 export const dynamic = 'force-dynamic';
@@ -69,6 +72,17 @@ export default async function RegistratiesPage() {
     monthlyData: [],
   };
 
+  // Check for active live tracking
+  const activeTrip = await db.query.liveTrips.findFirst({
+    where: and(
+      eq(schema.liveTrips.userId, user.id),
+      eq(schema.liveTrips.status, "RECORDING")
+    ),
+    with: {
+      vehicle: true,
+    },
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -86,6 +100,19 @@ export default async function RegistratiesPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Active Live Trip Card */}
+      {activeTrip && (
+        <ActiveTripCard
+          trip={{
+            id: activeTrip.id,
+            startedAt: activeTrip.startedAt,
+            startAddress: activeTrip.startAddress,
+            distanceKm: activeTrip.distanceKm,
+            vehicle: activeTrip.vehicle,
+          }}
+        />
+      )}
 
       {/* Action Items Banner */}
       {incompleteRegistrations.length > 0 && (

@@ -29,6 +29,11 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
   // Check if user has auto-calculate mode enabled
   const isAutoCalculateMode = user.metadata?.preferences?.odometerTracking?.mode === "auto_calculate";
 
+  // Check experimental settings
+  const metadata = (user.metadata as any) || {};
+  const experimental = metadata.preferences?.experimental || {};
+  const showPrivateDetourKm = experimental.showPrivateDetourKm ?? false;
+
   // Check for skipLastTrip query parameter
   const resolvedParams = await searchParams;
   const skipLastTrip = resolvedParams?.skipLastTrip === 'true';
@@ -132,6 +137,7 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
           previousLocations={previousLocations}
           lastRegistration={lastRegistration}
           isAutoCalculateMode={isAutoCalculateMode}
+          showPrivateDetourKm={showPrivateDetourKm}
         />
       )}
     </div>

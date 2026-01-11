@@ -29,7 +29,8 @@ export async function POST(request: Request) {
 
     // Call Nominatim reverse geocoding API
     const nominatimUrl = new URL(
-      "https://nominatim.openstreetmap.org/reverse"
+      '/reverse',
+      process.env.NOMINATIM_BASE_URL || 'https://nominatim.openstreetmap.org'
     );
     nominatimUrl.searchParams.set("lat", lat.toString());
     nominatimUrl.searchParams.set("lon", lon.toString());

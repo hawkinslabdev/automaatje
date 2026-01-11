@@ -63,6 +63,7 @@ const sidebarData = {
       items: [
         { title: "Overzicht", url: "/registraties/overzicht" },
         { title: "Nieuwe rit", url: "/registraties/nieuw" },
+        { title: "Live registreren", url: "/registraties/live" },
         { title: "Kilometerstand opslaan", url: "/registraties/meterstand" },
       ],
     },
@@ -81,6 +82,7 @@ export function AppSidebar({
   user,
   version,
   unreadCount = 0,
+  showLiveOnDesktop = false,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   user: {
@@ -91,8 +93,21 @@ export function AppSidebar({
   };
   version?: string;
   unreadCount?: number;
+  showLiveOnDesktop?: boolean;
 }) {
   const pathname = usePathname();
+
+  // Filter sidebar data based on experimental settings
+  const filteredAdministration = sidebarData.administration.map((section) => {
+    if (section.title === "Ritten" && section.items && !showLiveOnDesktop) {
+      // Remove "Live registreren" if showLiveOnDesktop is false
+      return {
+        ...section,
+        items: section.items.filter(item => item.title !== "Live registreren"),
+      };
+    }
+    return section;
+  });
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -141,7 +156,7 @@ export function AppSidebar({
             Administratie
           </SidebarGroupLabel>
           <SidebarMenu>
-            {sidebarData.administration.map((item) => (
+            {filteredAdministration.map((item) => (
               <CollapsibleMenuItem key={item.title} item={item} pathname={pathname} />
             ))}
           </SidebarMenu>

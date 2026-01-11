@@ -19,6 +19,15 @@ import { createRegistration } from "@/lib/actions/registrations";
 import { AddressAutocomplete, type AddressSuggestion, type Location } from "@/components/ui/address-autocomplete";
 import { formatDutchAddress, formatDutchNumber, parseDutchNumber, formatDutchDateTime, formatDistance, formatDuration } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RouteMap } from "./route-map";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,6 +57,7 @@ interface TripRegistrationFormProps {
   previousLocations?: Location[];
   lastRegistration?: LastRegistration | null;
   isAutoCalculateMode?: boolean;
+  showPrivateDetourKm?: boolean;
 }
 
 export function TripRegistrationForm({
@@ -57,11 +67,14 @@ export function TripRegistrationForm({
   previousLocations = [],
   lastRegistration,
   isAutoCalculateMode = false,
+  showPrivateDetourKm = false,
 }: TripRegistrationFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [showZeroKmWarning, setShowZeroKmWarning] = useState(false);
+  const [zeroKmConfirmed, setZeroKmConfirmed] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{
     distanceKm: number;
     durationMinutes: number;
@@ -284,6 +297,13 @@ export function TripRegistrationForm({
       // Parse distance (convert Dutch comma to dot)
       if (distanceKm) {
         const parsedDistance = parseDutchNumber(distanceKm);
+
+        // Check for 0 km distance (unless user already confirmed)
+        if (parsedDistance === 0 && !zeroKmConfirmed) {
+          setShowZeroKmWarning(true);
+          return;
+        }
+
         formData.append("distanceKm", parsedDistance.toString());
       }
       if (description) formData.append("description", description);
@@ -329,7 +349,8 @@ export function TripRegistrationForm({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left Column - Form */}
       <div className="space-y-4 lg:space-y-6">
         {error && (
@@ -618,30 +639,32 @@ export function TripRegistrationForm({
                 />
               </div>
 
-              {/* Private Detour KM */}
-              <div className="space-y-2">
-                <Label htmlFor="privateDetourKm">Privé omrijkilometers</Label>
-                <Input
-                  id="privateDetourKm"
-                  type="text"
-                  inputMode="decimal"
-                  value={privateDetourKm}
-                  onChange={(e) => setPrivateDetourKm(e.target.value)}
-                  placeholder="bijv. 15,5"
-                  className={privateDetourWarning ? "border-yellow-500" : ""}
-                />
-                {privateDetourWarning && (
-                  <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/10">
-                    <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                      {privateDetourWarning}
-                    </AlertDescription>
-                  </Alert>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Kilometers afgelegd voor privédoeleinden tijdens de zakelijke rit{distanceKm && ` van ${distanceKm} km`}
-                </p>
-              </div>
+              {/* Private Detour KM - Only show if experimental setting is enabled */}
+              {showPrivateDetourKm && (
+                <div className="space-y-2">
+                  <Label htmlFor="privateDetourKm">Privé omrijkilometers</Label>
+                  <Input
+                    id="privateDetourKm"
+                    type="text"
+                    inputMode="decimal"
+                    value={privateDetourKm}
+                    onChange={(e) => setPrivateDetourKm(e.target.value)}
+                    placeholder="bijv. 15,5"
+                    className={privateDetourWarning ? "border-yellow-500" : ""}
+                  />
+                  {privateDetourWarning && (
+                    <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/10">
+                      <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                      <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                        {privateDetourWarning}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Kilometers afgelegd voor privédoeleinden tijdens de zakelijke rit{distanceKm && ` van ${distanceKm} km`}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -680,5 +703,41 @@ export function TripRegistrationForm({
         />
       </div>
     </div>
+
+      {/* 0 km Warning Dialog */}
+      <AlertDialog open={showZeroKmWarning} onOpenChange={setShowZeroKmWarning}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Geen afstand geregistreerd</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Deze rit heeft 0 kilometer afstand. Weet je zeker dat je deze wilt opslaan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <button
+              onClick={() => setShowZeroKmWarning(false)}
+              className="px-4 py-2 text-sm font-medium rounded-md hover:bg-accent"
+            >
+              Annuleren
+            </button>
+            <AlertDialogAction
+              onClick={() => {
+                setShowZeroKmWarning(false);
+                setZeroKmConfirmed(true);
+                // Re-submit the form
+                setTimeout(() => {
+                  const form = document.querySelector('form');
+                  if (form) {
+                    form.requestSubmit();
+                  }
+                }, 0);
+              }}
+            >
+              Bewaren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

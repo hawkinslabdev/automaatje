@@ -11,6 +11,10 @@ import { TabelView } from "@/components/registrations/views/tabel-view";
 import { CompleteTripDialog } from "@/components/registrations/complete-trip-dialog";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { getActiveLiveTrip } from "@/lib/actions/live-trips";
+import { ActiveTripBanner } from "@/components/live-tracking/active-trip-banner";
+import { FloatingActionButton } from "@/components/ui/floating-action-button";
+import { Plus, Navigation, Gauge } from "lucide-react";
 
 interface RegistratiesOverzichtPageProps {
   searchParams?: Promise<{
@@ -80,8 +84,15 @@ export default async function RegistratiesOverzichtPage({
   const flatList = result.success && result.flatList ? result.flatList : [];
   const stats = result.success && result.stats ? result.stats : { totalDistance: 0, totalTrips: 0 };
 
+  // Check voor actieve live trip
+  const activeTripResult = await getActiveLiveTrip();
+  const activeTrip = activeTripResult.success ? activeTripResult.data : null;
+
   return (
     <div className="space-y-6">
+      {/* Active trip banner */}
+      {activeTrip && <ActiveTripBanner trip={activeTrip} />}
+
       <RegistrationsToolbar
         currentView={view}
         currentPeriod={period}
@@ -103,6 +114,30 @@ export default async function RegistratiesOverzichtPage({
           tripData={tripToComplete || undefined}
         />
       )}
+
+      {/* Floating Action Button (Mobile only) */}
+      <FloatingActionButton
+        actions={[
+          {
+            label: "Live registreren",
+            href: "/registraties/live",
+            icon: <Navigation className="h-5 w-5" />,
+            variant: "default",
+          },
+          {
+            label: "Nieuwe rit",
+            href: "/registraties/nieuw",
+            icon: <Plus className="h-5 w-5" />,
+            variant: "secondary",
+          },
+          {
+            label: "Kilometerstand",
+            href: "/registraties/meterstand",
+            icon: <Gauge className="h-5 w-5" />,
+            variant: "outline",
+          },
+        ]}
+      />
     </div>
   );
 }

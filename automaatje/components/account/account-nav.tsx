@@ -21,6 +21,7 @@ import {
   Code,
   FileText,
   ExternalLink,
+  FlaskConical,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -187,6 +188,11 @@ export function AccountNav({ onItemClick }: AccountNavProps = {}) {
           href: "/account/help",
           label: "Helpcentrum",
           icon: HelpCircle,
+        },
+        {
+          href: "/account/experimenteel",
+          label: "Experimenteel",
+          icon: FlaskConical,
         },
         {
           href: "https://github.com/hawkinslabdev/automaatje",

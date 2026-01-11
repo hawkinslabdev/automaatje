@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 
 /**
@@ -260,6 +260,14 @@ export const registrations = sqliteTable("registrations", {
     .notNull()
     .references(() => vehicles.id, { onDelete: "cascade" }),
 
+  // Live tracking integration
+  sourceTripId: text("source_trip_id").references(() => liveTrips.id),
+  registrationType: text("registration_type", {
+    enum: ["MANUAL", "LIVE_TRACKING"],
+  })
+    .notNull()
+    .default("MANUAL"),
+
   // Trip data stored as JSON for maximum flexibility
   data: text("data", { mode: "json" }).$type<{
     // Basic trip information
@@ -328,6 +336,91 @@ export const registrations = sqliteTable("registrations", {
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+/**
+ * Live Trips table - GPS-tracked trips with live recording
+ * Stores trips that are recorded in real-time using GPS tracking
+ * After classification, these are converted to regular registrations
+ */
+export const liveTrips = sqliteTable("live_trips", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  vehicleId: text("vehicle_id")
+    .notNull()
+    .references(() => vehicles.id, { onDelete: "cascade" }),
+
+  // Status tracking
+  status: text("status", {
+    enum: ["RECORDING", "COMPLETED", "CANCELLED"],
+  })
+    .notNull()
+    .default("RECORDING"),
+
+  // Timing
+  startedAt: integer("started_at", { mode: "timestamp" }).notNull(),
+  endedAt: integer("ended_at", { mode: "timestamp" }),
+
+  // GPS Data - Start location
+  startLat: real("start_lat").notNull(),
+  startLon: real("start_lon").notNull(),
+  startAddress: text("start_address"), // Reverse geocoded address
+
+  // GPS Data - End location
+  endLat: real("end_lat"),
+  endLon: real("end_lon"),
+  endAddress: text("end_address"), // Reverse geocoded address
+
+  // Calculated metrics
+  distanceKm: real("distance_km"),
+  durationSeconds: integer("duration_seconds"),
+
+  // Route data (simplified GeoJSON LineString)
+  routeGeoJson: text("route_geojson"), // Compressed route as GeoJSON
+
+  // Classification (filled after trip completion)
+  tripType: text("trip_type", {
+    enum: ["BUSINESS", "PRIVATE", "COMMUTE"],
+  }),
+  notes: text("notes"),
+  privateDetourKm: real("private_detour_km"), // For mixed trips (future enhancement)
+
+  // Metadata
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+/**
+ * GPS Points table - Incremental storage of GPS tracking data
+ * Prevents data loss during navigation or crashes
+ */
+export const gpsPoints = sqliteTable("gps_points", {
+  id: text("id").primaryKey(),
+  tripId: text("trip_id")
+    .notNull()
+    .references(() => liveTrips.id, { onDelete: "cascade" }),
+
+  // GPS coordinates
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  accuracy: real("accuracy").notNull(),
+  altitude: real("altitude"),
+  speed: real("speed"), // m/s
+  heading: real("heading"), // degrees
+
+  // Timestamp from GPS
+  timestamp: integer("timestamp").notNull(), // Unix ms
+
+  // Metadata
+  createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
 });
@@ -487,6 +580,7 @@ export const passwordResetTokens = sqliteTable("password_reset_tokens", {
 export const usersRelations = relations(users, ({ many }) => ({
   vehicles: many(vehicles),
   registrations: many(registrations),
+  liveTrips: many(liveTrips),
   ownedVehicleShares: many(vehicleShares, { relationName: "owner" }),
   sharedVehicles: many(vehicleShares, { relationName: "sharedWith" }),
   notifications: many(notifications),
@@ -500,6 +594,7 @@ export const vehiclesRelations = relations(vehicles, ({ one, many }) => ({
     references: [users.id],
   }),
   registrations: many(registrations),
+  liveTrips: many(liveTrips),
   shares: many(vehicleShares),
 }));
 
@@ -528,6 +623,30 @@ export const registrationsRelations = relations(registrations, ({ one }) => ({
   vehicle: one(vehicles, {
     fields: [registrations.vehicleId],
     references: [vehicles.id],
+  }),
+  sourceTrip: one(liveTrips, {
+    fields: [registrations.sourceTripId],
+    references: [liveTrips.id],
+  }),
+}));
+
+export const liveTripsRelations = relations(liveTrips, ({ one, many }) => ({
+  user: one(users, {
+    fields: [liveTrips.userId],
+    references: [users.id],
+  }),
+  vehicle: one(vehicles, {
+    fields: [liveTrips.vehicleId],
+    references: [vehicles.id],
+  }),
+  registrations: many(registrations),
+  gpsPoints: many(gpsPoints),
+}));
+
+export const gpsPointsRelations = relations(gpsPoints, ({ one }) => ({
+  trip: one(liveTrips, {
+    fields: [gpsPoints.tripId],
+    references: [liveTrips.id],
   }),
 }));
 
@@ -561,6 +680,8 @@ export type VehicleShare = typeof vehicleShares.$inferSelect;
 export type NewVehicleShare = typeof vehicleShares.$inferInsert;
 export type Registration = typeof registrations.$inferSelect;
 export type NewRegistration = typeof registrations.$inferInsert;
+export type LiveTrip = typeof liveTrips.$inferSelect;
+export type NewLiveTrip = typeof liveTrips.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
 export type BackgroundJob = typeof backgroundJobs.$inferSelect;

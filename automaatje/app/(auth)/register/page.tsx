@@ -6,22 +6,20 @@ import { GalleryVerticalEnd } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { WizardStepIndicator } from "@/components/onboarding/wizard-step-indicator";
 import { WizardNavigation } from "@/components/onboarding/wizard-navigation";
-import { StepPersonalInfo } from "@/components/onboarding/step-personal-info";
+import { StepAccountSetup } from "@/components/onboarding/step-account-setup";
 import { StepLocation } from "@/components/onboarding/step-location";
 import { StepVehicle } from "@/components/onboarding/step-vehicle";
 import { StepOdometerTracking } from "@/components/onboarding/step-odometer-tracking";
 import { StepMileageRates } from "@/components/onboarding/step-mileage-rates";
-import { StepAccount } from "@/components/onboarding/step-account";
 import { StepConfirmation } from "@/components/onboarding/step-confirmation";
 import { completeRegistration } from "@/lib/actions/registration-onboarding";
 import { fetchVehicleDetails } from "@/lib/actions/vehicles";
 import {
-  personalInfoSchema,
+  accountSetupSchema,
   locationSchema,
   vehicleRegistrationSchema,
   odometerTrackingSchema,
   mileageRatesSchema,
-  accountRegistrationSchema,
 } from "@/lib/validations/registration-onboarding";
 import type { RegistrationWizardData } from "@/lib/validations/registration-onboarding";
 
@@ -83,9 +81,11 @@ export default function RegisterPage() {
     try {
       switch (step) {
         case 1:
-          personalInfoSchema.parse({
+          accountSetupSchema.parse({
             name: state.name,
             email: state.email,
+            password: state.password,
+            confirmPassword: state.confirmPassword,
           });
           break;
         case 2:
@@ -114,12 +114,6 @@ export default function RegisterPage() {
           mileageRatesSchema.parse({
             rateType: state.rateType,
             customRate: state.rateType === "custom" ? state.customRate : undefined,
-          });
-          break;
-        case 6:
-          accountRegistrationSchema.parse({
-            password: state.password,
-            confirmPassword: state.confirmPassword,
           });
           break;
       }
@@ -198,7 +192,7 @@ export default function RegisterPage() {
       return;
     }
 
-    if (state.currentStep < 7) {
+    if (state.currentStep < 6) {
       setState((prev) => ({
         ...prev,
         currentStep: prev.currentStep + 1,
@@ -281,7 +275,7 @@ export default function RegisterPage() {
   const canProceed = () => {
     switch (state.currentStep) {
       case 1:
-        return !!state.name && !!state.email;
+        return !!state.name && !!state.email && !!state.password && !!state.confirmPassword;
       case 2:
         return !!state.locationText;
       case 3:
@@ -301,8 +295,6 @@ export default function RegisterPage() {
       case 5:
         return !!state.rateType && (state.rateType !== "custom" || !!state.customRate);
       case 6:
-        return !!state.password && !!state.confirmPassword;
-      case 7:
         return true;
       default:
         return false;
@@ -323,7 +315,7 @@ export default function RegisterPage() {
                 Laten we je account instellen in een paar eenvoudige stappen
               </p>
             </div>
-            <WizardStepIndicator currentStep={state.currentStep} totalSteps={7} />
+            <WizardStepIndicator currentStep={state.currentStep} totalSteps={6} />
           </CardHeader>
 
           <CardContent className="space-y-6 px-4 sm:px-6">
@@ -334,8 +326,13 @@ export default function RegisterPage() {
             )}
 
             {state.currentStep === 1 && (
-              <StepPersonalInfo
-                data={{ name: state.name, email: state.email }}
+              <StepAccountSetup
+                data={{
+                  name: state.name,
+                  email: state.email,
+                  password: state.password,
+                  confirmPassword: state.confirmPassword,
+                }}
                 errors={state.errors}
                 onChange={handleFieldChange}
               />
@@ -394,17 +391,6 @@ export default function RegisterPage() {
             )}
 
             {state.currentStep === 6 && (
-              <StepAccount
-                data={{
-                  password: state.password,
-                  confirmPassword: state.confirmPassword,
-                }}
-                errors={state.errors}
-                onChange={handleFieldChange}
-              />
-            )}
-
-            {state.currentStep === 7 && (
               <StepConfirmation
                 data={{
                   name: state.name,
@@ -431,7 +417,7 @@ export default function RegisterPage() {
 
           <WizardNavigation
             currentStep={state.currentStep}
-            totalSteps={7}
+            totalSteps={6}
             onBack={handleBack}
             onNext={handleNext}
             isLoading={state.isLoading}

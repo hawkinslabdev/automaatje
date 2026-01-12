@@ -1,7 +1,29 @@
 import { z } from "zod";
 import { normalizeLicensePlate, isValidDutchLicensePlate } from "./vehicle";
 
-// Step 1: Personal Info
+// Step 1: Account Setup (merged personal info + password)
+export const accountSetupSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2, { message: "Naam moet minimaal 2 tekens bevatten" }),
+    email: z
+      .string()
+      .email({ message: "Ongeldig e-mailadres" }),
+    password: z
+      .string()
+      .min(8, { message: "Wachtwoord moet minimaal 8 tekens bevatten" })
+      .regex(/[A-Z]/, { message: "Wachtwoord moet minimaal één hoofdletter bevatten" })
+      .regex(/[a-z]/, { message: "Wachtwoord moet minimaal één kleine letter bevatten" })
+      .regex(/[0-9]/, { message: "Wachtwoord moet minimaal één cijfer bevatten" }),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Wachtwoorden komen niet overeen",
+    path: ["confirmPassword"],
+  });
+
+// Legacy schemas (kept for backwards compatibility if needed)
 export const personalInfoSchema = z.object({
   name: z
     .string()
@@ -78,8 +100,8 @@ export const mileageRatesSchema = z.object({
   customRate: z.number().min(0).max(10).optional(),
 });
 
-// Step 6: Account
-export const accountSetupSchema = z
+// Step 5: Account Password (legacy - now part of accountSetupSchema)
+export const accountPasswordSchema = z
   .object({
     password: z
       .string()
@@ -113,10 +135,11 @@ export const setupSchema = z.object({
   password: z.string().min(8),
 });
 
+export type AccountSetupInput = z.infer<typeof accountSetupSchema>;
 export type PersonalInfoInput = z.infer<typeof personalInfoSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
 export type VehicleSetupInput = z.infer<typeof vehicleSetupSchema>;
 export type OdometerTrackingInput = z.infer<typeof odometerTrackingSchema>;
 export type MileageRatesInput = z.infer<typeof mileageRatesSchema>;
-export type AccountSetupInput = z.infer<typeof accountSetupSchema>;
+export type AccountPasswordInput = z.infer<typeof accountPasswordSchema>;
 export type SetupWizardData = z.infer<typeof setupSchema>;

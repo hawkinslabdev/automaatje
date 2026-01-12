@@ -4,6 +4,8 @@ services:
     container_name: automaatje
     ports:
       - "3123:3123"
+    # Required: Create a .env file with SESSION_SECRET before starting
+    # Example: echo "SESSION_SECRET=$(openssl rand -base64 32)" > .env
     environment:
       - DATABASE_URL=/data/sqlite.db
       - SESSION_SECRET=${SESSION_SECRET}

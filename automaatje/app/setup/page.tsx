@@ -7,22 +7,20 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { WizardStepIndicator } from "@/components/onboarding/wizard-step-indicator";
 import { WizardNavigation } from "@/components/onboarding/wizard-navigation";
-import { StepPersonalInfo } from "@/components/onboarding/step-personal-info";
+import { StepAccountSetup } from "@/components/onboarding/step-account-setup";
 import { StepLocation } from "@/components/onboarding/step-location";
 import { StepVehicle } from "@/components/onboarding/step-vehicle";
 import { StepOdometerTracking } from "@/components/onboarding/step-odometer-tracking";
 import { StepMileageRates } from "@/components/onboarding/step-mileage-rates";
-import { StepAccount } from "@/components/onboarding/step-account";
 import { StepConfirmation } from "@/components/onboarding/step-confirmation";
 import { completeSetup } from "@/lib/actions/setup";
 import { fetchVehicleDetails } from "@/lib/actions/vehicles";
 import {
-  personalInfoSchema,
+  accountSetupSchema,
   locationSchema,
   vehicleSetupSchema,
   odometerTrackingSchema,
   mileageRatesSchema,
-  accountSetupSchema,
 } from "@/lib/validations/setup";
 import type { SetupWizardData } from "@/lib/validations/setup";
 
@@ -87,10 +85,12 @@ export default function SetupPage() {
     try {
       switch (step) {
         case 1:
-          console.log('[validateStep] Step 1 - Personal Info:', { name: state.name, email: state.email });
-          personalInfoSchema.parse({
+          console.log('[validateStep] Step 1 - Account Setup:', { name: state.name, email: state.email, password: '***' });
+          accountSetupSchema.parse({
             name: state.name,
             email: state.email,
+            password: state.password,
+            confirmPassword: state.confirmPassword,
           });
           break;
         case 2:
@@ -102,10 +102,10 @@ export default function SetupPage() {
           });
           break;
         case 3:
-          console.log('[validateStep] Step 3 - Vehicle:', { 
-            licensePlate: state.licensePlate, 
+          console.log('[validateStep] Step 3 - Vehicle:', {
+            licensePlate: state.licensePlate,
             vehicleType: state.vehicleType,
-            vehicleName: state.vehicleName 
+            vehicleName: state.vehicleName
           });
           vehicleSetupSchema.parse({
             licensePlate: state.licensePlate,
@@ -114,9 +114,9 @@ export default function SetupPage() {
           });
           break;
         case 4:
-          console.log('[validateStep] Step 4 - Odometer:', { 
+          console.log('[validateStep] Step 4 - Odometer:', {
             odometerMode: state.odometerMode,
-            odometerFrequency: state.odometerFrequency 
+            odometerFrequency: state.odometerFrequency
           });
           odometerTrackingSchema.parse({
             odometerMode: state.odometerMode,
@@ -130,13 +130,6 @@ export default function SetupPage() {
           mileageRatesSchema.parse({
             rateType: state.rateType,
             customRate: state.rateType === "custom" ? state.customRate : undefined,
-          });
-          break;
-        case 6:
-          console.log('[validateStep] Step 6 - Account:', { password: '***', confirmPassword: '***' });
-          accountSetupSchema.parse({
-            password: state.password,
-            confirmPassword: state.confirmPassword,
           });
           break;
       }
@@ -230,7 +223,7 @@ export default function SetupPage() {
       return;
     }
 
-    if (state.currentStep < 7) {
+    if (state.currentStep < 6) {
       setState((prev) => ({
         ...prev,
         currentStep: prev.currentStep + 1,
@@ -314,7 +307,7 @@ export default function SetupPage() {
   const canProceed = () => {
     switch (state.currentStep) {
       case 1:
-        return !!state.name && !!state.email;
+        return !!state.name && !!state.email && !!state.password && !!state.confirmPassword;
       case 2:
         return !!state.locationText;
       case 3:
@@ -334,8 +327,6 @@ export default function SetupPage() {
       case 5:
         return !!state.rateType && (state.rateType !== "custom" || !!state.customRate);
       case 6:
-        return !!state.password && !!state.confirmPassword;
-      case 7:
         return true;
       default:
         return false;
@@ -356,7 +347,7 @@ export default function SetupPage() {
                 Laten we je account instellen in een paar eenvoudige stappen
               </p>
             </div>
-            <WizardStepIndicator currentStep={state.currentStep} totalSteps={7} />
+            <WizardStepIndicator currentStep={state.currentStep} totalSteps={6} />
           </CardHeader>
 
           <CardContent className="space-y-6 px-4 sm:px-6">
@@ -367,8 +358,13 @@ export default function SetupPage() {
             )}
 
             {state.currentStep === 1 && (
-              <StepPersonalInfo
-                data={{ name: state.name, email: state.email }}
+              <StepAccountSetup
+                data={{
+                  name: state.name,
+                  email: state.email,
+                  password: state.password,
+                  confirmPassword: state.confirmPassword,
+                }}
                 errors={state.errors}
                 onChange={handleFieldChange}
               />
@@ -427,17 +423,6 @@ export default function SetupPage() {
             )}
 
             {state.currentStep === 6 && (
-              <StepAccount
-                data={{
-                  password: state.password,
-                  confirmPassword: state.confirmPassword,
-                }}
-                errors={state.errors}
-                onChange={handleFieldChange}
-              />
-            )}
-
-            {state.currentStep === 7 && (
               <StepConfirmation
                 data={{
                   name: state.name,
@@ -464,7 +449,7 @@ export default function SetupPage() {
 
           <WizardNavigation
             currentStep={state.currentStep}
-            totalSteps={7}
+            totalSteps={6}
             onBack={handleBack}
             onNext={handleNext}
             isLoading={state.isLoading}

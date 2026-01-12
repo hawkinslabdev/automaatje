@@ -5,7 +5,25 @@ import { z } from "zod";
  * Reuses the same validation as setup wizard, but for regular users (not admins)
  */
 
-// Step 1: Personal Info
+// Step 1: Account Setup (merged personal info + password)
+export const accountSetupSchema = z
+  .object({
+    name: z.string().min(2, "Naam moet minimaal 2 tekens bevatten"),
+    email: z.string().email("Ongeldig e-mailadres"),
+    password: z
+      .string()
+      .min(8, "Wachtwoord moet minimaal 8 tekens bevatten")
+      .regex(/[A-Z]/, "Wachtwoord moet minimaal 1 hoofdletter bevatten")
+      .regex(/[a-z]/, "Wachtwoord moet minimaal 1 kleine letter bevatten")
+      .regex(/\d/, "Wachtwoord moet minimaal 1 cijfer bevatten"),
+    confirmPassword: z.string().min(1, "Bevestig je wachtwoord"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Wachtwoorden komen niet overeen",
+    path: ["confirmPassword"],
+  });
+
+// Legacy schemas (kept for backwards compatibility if needed)
 export const personalInfoSchema = z.object({
   name: z.string().min(2, "Naam moet minimaal 2 tekens bevatten"),
   email: z.string().email("Ongeldig e-mailadres"),
@@ -74,8 +92,8 @@ export const mileageRatesSchema = z.object({
   }
 );
 
-// Step 6: Account (Password)
-export const accountRegistrationSchema = z
+// Step 5: Account Password (legacy - now part of accountSetupSchema)
+export const accountPasswordSchema = z
   .object({
     password: z
       .string()

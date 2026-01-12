@@ -41,6 +41,7 @@ The easiest way to get Automaatje running locally is with Docker Compose. Grab t
 
 ```bash
 mkdir automaatje && cd automaatje
+echo "SESSION_SECRET=$(openssl rand -base64 32)" > .env
 curl -O https://raw.githubusercontent.com/hawkinslabdev/automaatje/refs/heads/main/docker-compose.yml && docker compose up -d
 ```
 

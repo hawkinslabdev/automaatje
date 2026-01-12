@@ -41,6 +41,3 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 *.db-journal
- 
-# drizzle
-/drizzle

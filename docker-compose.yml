@@ -6,7 +6,7 @@ services:
       - "3123:3123"
     environment:
       - DATABASE_URL=/data/sqlite.db
-      - SESSION_SECRET=change-this-to-a-random-string-minimum-32-characters
+      - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_APP_NAME=Automaatje

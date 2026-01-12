@@ -3,6 +3,14 @@ set -e
 
 echo "Starting Automaatje container..."
 
+# Validate SESSION_SECRET is set
+if [ -z "$SESSION_SECRET" ]; then
+  echo "ERROR: SESSION_SECRET environment variable is not set."
+  echo "Please generate a secure random secret and add it to your .env file:"
+  echo "  echo \"SESSION_SECRET=\$(openssl rand -base64 32)\" > .env"
+  exit 1
+fi
+
 # Run safe database migrations
 echo "Checking database state..."
 node node_modules/tsx/dist/cli.mjs lib/db/safe-migrate.ts

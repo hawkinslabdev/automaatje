@@ -4,7 +4,7 @@ import { getIronSession } from "iron-session";
 import { SessionData, sessionOptions } from "@/lib/auth/session";
 import { cookies } from "next/headers";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for /setup - the setup layout handles protection

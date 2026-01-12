@@ -11,6 +11,9 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Empty turbopack config to acknowledge webpack config from Serwist
+  // Serwist doesn't support Turbopack yet, so we'll use webpack in production
+  turbopack: {},
   /* config options here */
 };
 

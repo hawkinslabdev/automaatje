@@ -11,6 +11,9 @@ import { getRandomAvatarSeed } from "@/lib/avatar";
 
 /**
  * Check if setup is required (no users exist in database)
+ * Returns true ONLY if we can confirm no users exist
+ * Returns false if users exist OR if there's a database error
+ * (database errors should not trigger setup flow)
  */
 export async function checkSetupRequired(): Promise<boolean> {
   try {
@@ -18,11 +21,13 @@ export async function checkSetupRequired(): Promise<boolean> {
       .select({ count: schema.users.id })
       .from(schema.users);
 
+    // Setup required only if we successfully queried and found 0 users
     return userCount.length === 0;
   } catch (error) {
     console.error("Error checking setup requirement:", error);
-    // If database doesn't exist or error, assume setup required
-    return true;
+    // On database errors, assume setup is NOT required (don't redirect to setup)
+    // If the database is broken, let the user see the login page and get proper error messages
+    return false;
   }
 }
 
@@ -31,12 +36,16 @@ export async function checkSetupRequired(): Promise<boolean> {
  */
 export async function completeSetup(data: SetupWizardData) {
   try {
+    console.log('[completeSetup] Starting setup process...');
+
     // 1. Security check: Verify no users exist (prevent duplicate setups)
+    console.log('[completeSetup] Checking for existing users...');
     const userCount = await db
       .select({ count: schema.users.id })
       .from(schema.users);
 
     if (userCount.length > 0) {
+      console.log('[completeSetup] Users already exist, aborting');
       return {
         success: false,
         error: "Setup is al voltooid. Je kunt inloggen met je bestaande account."
@@ -44,10 +53,14 @@ export async function completeSetup(data: SetupWizardData) {
     }
 
     // 2. Validate all data with Zod schema
+    console.log('[completeSetup] Validating data with schema...');
     const validated = setupSchema.parse(data);
+    console.log('[completeSetup] Schema validation passed');
 
     // 3. Validate license plate with RDW API
+    console.log('[completeSetup] Validating license plate with RDW API:', validated.licensePlate);
     const plateValidation = await validateDutchLicensePlate(validated.licensePlate);
+    console.log('[completeSetup] RDW validation complete:', plateValidation.valid);
     if (!plateValidation.valid) {
       return {
         success: false,
@@ -56,9 +69,12 @@ export async function completeSetup(data: SetupWizardData) {
     }
 
     // 4. Hash password
+    console.log('[completeSetup] Hashing password...');
     const passwordHash = await hashPassword(validated.password);
+    console.log('[completeSetup] Password hashed successfully');
 
     // 5. Create user with ADMIN role
+    console.log('[completeSetup] Creating admin user...');
     const userId = nanoid();
     await db.insert(schema.users).values({
       id: userId,
@@ -85,8 +101,10 @@ export async function completeSetup(data: SetupWizardData) {
         },
       },
     });
+    console.log('[completeSetup] User created:', userId);
 
     // 6. Create vehicle with isMain: true
+    console.log('[completeSetup] Creating vehicle...');
     const vehicleId = nanoid();
     const normalizedPlate = normalizeLicensePlate(validated.licensePlate);
 
@@ -112,6 +130,7 @@ export async function completeSetup(data: SetupWizardData) {
       licensePlate: normalizedPlate,
       details: vehicleDetails,
     });
+    console.log('[completeSetup] Vehicle created:', vehicleId);
 
     // 6a. Create initial meterstand entry for visibility and auditing
     // This ensures the initial odometer reading appears in reports
@@ -134,6 +153,7 @@ export async function completeSetup(data: SetupWizardData) {
     }
 
     // 7. Initialize settings
+    console.log('[completeSetup] Initializing settings...');
     const currentYear = new Date().getFullYear();
 
     await db.insert(schema.settings).values([
@@ -169,21 +189,25 @@ export async function completeSetup(data: SetupWizardData) {
         },
       },
     ]);
+    console.log('[completeSetup] Settings initialized');
 
     // 8. Create session (auto-login)
+    console.log('[completeSetup] Creating session...');
     const session = await getSession();
     session.userId = userId;
     session.email = validated.email;
     session.role = "ADMIN";
     session.isLoggedIn = true;
     await session.save();
+    console.log('[completeSetup] Session created and saved');
 
+    console.log('[completeSetup] Setup completed successfully!');
     return {
       success: true,
       data: { userId, vehicleId }
     };
   } catch (error) {
-    console.error("Setup error:", error);
+    console.error("[completeSetup] Setup error:", error);
 
     if (error instanceof Error) {
       return { success: false, error: error.message };

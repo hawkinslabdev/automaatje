@@ -106,7 +106,7 @@ export async function checkMaintenanceReminders() {
         }
 
         if (alreadyNotified) {
-          console.log(`⏭️  Already notified for vehicle ${vehicle.id}`);
+          console.log(`Already notified for vehicle ${vehicle.id}`);
           continue;
         }
 

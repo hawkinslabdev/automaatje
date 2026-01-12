@@ -132,7 +132,12 @@ export const setupSchema = z.object({
   initialOdometerDate: z.date().optional(),
   rateType: z.enum(["standard", "custom", "none"]),
   customRate: z.number().min(0).max(10).optional(),
-  password: z.string().min(8),
+  password: z
+    .string()
+    .min(8)
+    .regex(/[A-Z]/, { message: "Wachtwoord moet minimaal één hoofdletter bevatten" })
+    .regex(/[a-z]/, { message: "Wachtwoord moet minimaal één kleine letter bevatten" })
+    .regex(/[0-9]/, { message: "Wachtwoord moet minimaal één cijfer bevatten" }),
 });
 
 export type AccountSetupInput = z.infer<typeof accountSetupSchema>;

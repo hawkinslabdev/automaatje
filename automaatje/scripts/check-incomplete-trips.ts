@@ -61,7 +61,7 @@ export async function checkIncompleteTrips() {
   });
 
   if (skippedAutoCalculate > 0) {
-    console.log(`⏭️  Skipped ${skippedAutoCalculate} auto-calculated trips`);
+    console.log(`⏭Skipped ${skippedAutoCalculate} auto-calculated trips`);
   }
 
   if (incompleteTrips.length === 0) {
@@ -69,7 +69,7 @@ export async function checkIncompleteTrips() {
     return [];
   }
 
-  console.log(`📋 Found ${incompleteTrips.length} incomplete manual trips`);
+  console.log(`Found ${incompleteTrips.length} incomplete manual trips`);
 
   // Group by user
   const tripsByUser = incompleteTrips.reduce((acc, trip) => {
@@ -112,7 +112,7 @@ export async function checkIncompleteTrips() {
       }
 
       if (alreadyNotified) {
-        console.log(`⏭️  User ${userId} already notified about these trips`);
+        console.log(`User ${userId} already notified about these trips`);
         continue;
       }
 

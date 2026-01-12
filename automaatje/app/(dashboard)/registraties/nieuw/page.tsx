@@ -108,13 +108,14 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
 
     // Smart calculation: If previous trip has distance but no end odometer, calculate it
     const lastData = lastRegistration.data as any;
-    if (!lastData.endOdometerKm && lastData.distanceKm) {
+    if (!Number.isFinite(lastData.endOdometerKm) && lastData.distanceKm) {
       // Calculate the effective end odometer from start + distance
       lastData.calculatedEndOdometer = lastData.startOdometerKm + lastData.distanceKm;
     }
 
     // Check if last registration is incomplete (missing end odometer)
-    isLastIncomplete = !lastData.endOdometerKm;
+    // Use Number.isFinite to correctly handle 0 km rides
+    isLastIncomplete = !Number.isFinite(lastData.endOdometerKm);
   }
 
   return (

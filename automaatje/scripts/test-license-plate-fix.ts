@@ -38,7 +38,7 @@ let criticalFailed = 0;
 criticalTestCases.forEach(({ input, expected, description }) => {
   const result = normalizeLicensePlate(input);
   const isValid = isValidDutchLicensePlate(result);
-  const status = result === expected ? "✅ PASS" : "❌ FAIL";
+  const status = result === expected ? "Passed" : "Failed";
   
   if (result === expected) {
     criticalPassed++;
@@ -49,7 +49,7 @@ criticalTestCases.forEach(({ input, expected, description }) => {
   console.log(`${status} | ${input.padEnd(10)} → ${result.padEnd(10)} | Expected: ${expected.padEnd(10)} | ${description}`);
 });
 
-console.log("\n📋 Additional Valid Formats:\n");
+console.log("\nAdditional Valid Formats:\n");
 
 let additionalPassed = 0;
 let additionalFailed = 0;
@@ -57,7 +57,7 @@ let additionalFailed = 0;
 additionalTestCases.forEach(({ input, expected, description }) => {
   const result = normalizeLicensePlate(input);
   const isValid = isValidDutchLicensePlate(result);
-  const status = result === expected ? "✅ PASS" : "❌ FAIL";
+  const status = result === expected ? "Passed" : "Failed";
   
   if (result === expected) {
     additionalPassed++;

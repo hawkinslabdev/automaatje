@@ -133,10 +133,10 @@ export default function SetupPage() {
           });
           break;
       }
-      console.log(`[validateStep] Step ${step} validation PASSED ✅`);
+      console.log(`[validateStep] Step ${step} validation status: Passed`);
       return true;
     } catch (error: any) {
-      console.error(`[validateStep] Step ${step} validation FAILED ❌`, error);
+      console.error(`[validateStep] Step ${step} validation status: Failed`, error);
       
       if (error.errors) {
         const fieldErrors: Record<string, string> = {};

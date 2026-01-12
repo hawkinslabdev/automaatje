@@ -68,12 +68,12 @@ tests.forEach((test, index) => {
   const success = result === test.expected;
   
   if (success) {
-    console.log(`✅ Test ${index + 1}: ${test.name}`);
+    console.log(`Success: Test ${index + 1}: ${test.name}`);
     console.log(`   Input:    "${test.input}"`);
     console.log(`   Output:   "${result}"`);
     passed++;
   } else {
-    console.log(`❌ Test ${index + 1}: ${test.name}`);
+    console.log(`Failed: Test ${index + 1}: ${test.name}`);
     console.log(`   Input:    "${test.input}"`);
     console.log(`   Expected: "${test.expected}"`);
     console.log(`   Got:      "${result}"`);

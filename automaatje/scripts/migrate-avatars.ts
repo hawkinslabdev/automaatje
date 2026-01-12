@@ -13,10 +13,10 @@ async function main() {
   const result = await addAvatarSeedToExistingUsers();
 
   if (result.success) {
-    console.log("\n✅ Migration completed successfully!");
+    console.log("\nMigration completed successfully!");
     process.exit(0);
   } else {
-    console.error("\n❌ Migration failed:", result.error);
+    console.error("\nMigration failed:", result.error);
     process.exit(1);
   }
 }

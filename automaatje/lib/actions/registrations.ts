@@ -238,8 +238,8 @@ export async function createRegistration(formData: FormData) {
         linkedTripId: validated.linkedTripId,
         tripDirection: validated.tripDirection,
         // A trip is incomplete if it doesn't have an actual end odometer reading
-        // Having OSRM distance doesn't make it complete - we need the actual odometer
-        isIncomplete: !validated.endOdometerKm,
+        // Use Number.isFinite to correctly handle 0 km rides (0 is complete, null/undefined is incomplete)
+        isIncomplete: !Number.isFinite(validated.endOdometerKm),
         // Auto-calculate metadata
         odometerCalculated: odometerCalculated || undefined,
         calculationBasedOn: calculationBasedOn || undefined,
@@ -250,11 +250,11 @@ export async function createRegistration(formData: FormData) {
     revalidatePath("/dashboard");
 
     // Check for odometer milestone after successful creation
-    if (validated.endOdometerKm) {
+    if (Number.isFinite(validated.endOdometerKm)) {
       await checkOdometerMilestone(
         session.userId!,
         validated.vehicleId,
-        validated.endOdometerKm
+        validated.endOdometerKm!
       );
     } else {
       // Send real-time incomplete trip notification
@@ -409,7 +409,8 @@ async function autoArchiveIncompleteNotifications(
 
         const tripData = trip.data as any;
         // Check if trip is still incomplete
-        if (!tripData.endOdometerKm || tripData.isIncomplete === true) {
+        // Use Number.isFinite to correctly handle 0 km rides
+        if (!Number.isFinite(tripData.endOdometerKm) || tripData.isIncomplete === true) {
           allComplete = false;
           break;
         }
@@ -785,6 +786,60 @@ export async function getLastTripRegistration() {
     console.error("Get last trip registration error:", error);
     return { success: false, error: "Kon laatste rit niet ophalen" };
   }
+}
+
+/**
+ * Get the most recent odometer reading for a vehicle
+ * Considers both trip end odometers and meterstand entries
+ * Returns the most recent value chronologically
+ *
+ * This is crucial for live tracking to start with the correct odometer value
+ * instead of defaulting to 0
+ */
+export async function getLatestOdometerForVehicle(
+  vehicleId: string,
+  userId: string
+): Promise<number | null> {
+  const allRegistrations = await db.query.registrations.findMany({
+    where: and(
+      eq(schema.registrations.vehicleId, vehicleId),
+      eq(schema.registrations.userId, userId)
+    ),
+    orderBy: [desc(schema.registrations.createdAt)],
+    limit: 20, // Get recent entries to find the latest odometer
+  });
+
+  // Look through recent registrations to find the latest odometer reading
+  for (const reg of allRegistrations) {
+    const data = reg.data as any;
+
+    // Check meterstand entry (manual odometer reading)
+    if (isMeterstandEntry(reg) && Number.isFinite(data.startOdometerKm)) {
+      return data.startOdometerKm;
+    }
+
+    // Check trip end odometer
+    if (Number.isFinite(data.endOdometerKm)) {
+      return data.endOdometerKm;
+    }
+
+    // Check calculated end odometer
+    if (Number.isFinite(data.calculatedEndOdometer)) {
+      return data.calculatedEndOdometer;
+    }
+
+    // Check trip start + distance
+    if (Number.isFinite(data.startOdometerKm) && Number.isFinite(data.distanceKm)) {
+      return data.startOdometerKm + data.distanceKm;
+    }
+
+    // Fallback to start odometer
+    if (Number.isFinite(data.startOdometerKm)) {
+      return data.startOdometerKm;
+    }
+  }
+
+  return null; // No odometer reading found
 }
 
 /**
@@ -1333,7 +1388,8 @@ export async function getIncompleteRegistrations() {
       }
 
       // Only show trips that were expected to be manually completed
-      return !data.endOdometerKm;
+      // Use Number.isFinite to correctly handle 0 km rides
+      return !Number.isFinite(data.endOdometerKm);
     });
 
     return { success: true, data: incomplete };

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import type { LiveTrip } from "@/lib/db/schema";
 import { geocodingService } from "@/lib/services/geocoding.service";
 import type { GPSPoint } from "@/lib/services/gps-tracker.service";
+import { getLatestOdometerForVehicle } from "@/lib/actions/registrations";
 
 /**
  * Result type voor server actions
@@ -194,17 +195,9 @@ export async function stopLiveTrip(data: {
       })
       .where(eq(schema.liveTrips.id, data.tripId));
 
-    // Bereken kilometerstand op basis van vorige rit voor dit voertuig
-    const lastRegistration = await db.query.registrations.findFirst({
-      where: and(
-        eq(schema.registrations.vehicleId, trip.vehicleId),
-        eq(schema.registrations.userId, userId)
-      ),
-      orderBy: (registrations, { desc }) => [desc(registrations.createdAt)],
-    });
-
-    // Start odometer = laatste eindstand, of 0 als dit de eerste rit is
-    const startOdometerKm = lastRegistration?.data?.endOdometerKm ?? 0;
+    // Bereken kilometerstand op basis van actuele kilometerstand
+    // Gebruikt meest recente meterstand entry OF eindstand van vorige rit
+    const startOdometerKm = (await getLatestOdometerForVehicle(trip.vehicleId, userId)) ?? 0;
     const endOdometerKm = startOdometerKm + data.distanceKm;
 
     // Maak direct een registratie aan met default waarden

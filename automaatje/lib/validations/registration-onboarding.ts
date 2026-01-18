@@ -36,7 +36,16 @@ export const locationSchema = z.object({
   locationLon: z.number().optional(),
 });
 
-// Step 3: Vehicle
+// Step 3: Tracking Mode
+export const trackingModeSchema = z.object({
+  trackingMode: z
+    .enum(["full_registration", "simple_reimbursement"], {
+      message: "Selecteer een registratiemethode",
+    })
+    .default("full_registration"),
+});
+
+// Step 4: Vehicle (with optional odometer)
 export const vehicleRegistrationSchema = z.object({
   licensePlate: z
     .string()
@@ -47,6 +56,16 @@ export const vehicleRegistrationSchema = z.object({
     ),
   vehicleType: z.enum(["Auto", "Motorfiets", "Scooter", "Fiets"]),
   vehicleName: z.string().optional(),
+  // Optional odometer fields (merged from old step 4)
+  initialOdometerKm: z
+    .number({
+      message: "Kilometerstand moet een geldig getal zijn",
+    })
+    .int({ message: "Kilometerstand moet een geheel getal zijn" })
+    .min(0, { message: "Kilometerstand kan niet negatief zijn" })
+    .max(999999, { message: "Kilometerstand lijkt onrealistisch hoog" })
+    .optional(),
+  initialOdometerDate: z.string().optional(), // ISO date string
 });
 
 // Step 4: Odometer Tracking
@@ -111,16 +130,26 @@ export const accountPasswordSchema = z
 // Combined schema for full registration
 export const registrationSchema = z
   .object({
-    // Personal info
+    // Step 1: Account
     name: z.string().min(2, "Naam moet minimaal 2 tekens bevatten"),
     email: z.string().email("Ongeldig e-mailadres"),
+    password: z
+      .string()
+      .min(8, "Wachtwoord moet minimaal 8 tekens bevatten")
+      .regex(/[A-Z]/, "Wachtwoord moet minimaal 1 hoofdletter bevatten")
+      .regex(/[a-z]/, "Wachtwoord moet minimaal 1 kleine letter bevatten")
+      .regex(/\d/, "Wachtwoord moet minimaal 1 cijfer bevatten"),
+    confirmPassword: z.string().min(1, "Bevestig je wachtwoord"),
 
-    // Location
+    // Step 2: Location
     locationText: z.string().min(1, "Locatie is verplicht"),
     locationLat: z.number().optional(),
     locationLon: z.number().optional(),
 
-    // Vehicle
+    // Step 3: Tracking Mode
+    trackingMode: z.enum(["full_registration", "simple_reimbursement"]).default("full_registration"),
+
+    // Step 4: Vehicle + Odometer
     licensePlate: z
       .string()
       .min(1, "Kenteken is verplicht")
@@ -130,43 +159,13 @@ export const registrationSchema = z
       ),
     vehicleType: z.enum(["Auto", "Motorfiets", "Scooter", "Fiets"]),
     vehicleName: z.string().optional(),
-
-    // Odometer tracking
-    odometerMode: z.enum(["manual", "auto_calculate"]),
-    odometerFrequency: z.enum(["dagelijks", "wekelijks", "maandelijks"]).optional(),
     initialOdometerKm: z.number().optional(),
-    initialOdometerDate: z.date().optional(),
+    initialOdometerDate: z.string().optional(),
 
-    // Mileage rates
+    // Step 5: Mileage rates
     rateType: z.enum(["standard", "custom", "none"]),
     customRate: z.number().optional(),
-
-    // Password
-    password: z
-      .string()
-      .min(8, "Wachtwoord moet minimaal 8 tekens bevatten")
-      .regex(/[A-Z]/, "Wachtwoord moet minimaal 1 hoofdletter bevatten")
-      .regex(/[a-z]/, "Wachtwoord moet minimaal 1 kleine letter bevatten")
-      .regex(/\d/, "Wachtwoord moet minimaal 1 cijfer bevatten"),
-    confirmPassword: z.string().min(1, "Bevestig je wachtwoord"),
   })
-  .refine(
-    (data) => {
-      if (data.odometerMode === "auto_calculate") {
-        return (
-          data.odometerFrequency &&
-          data.initialOdometerKm !== undefined &&
-          data.initialOdometerDate
-        );
-      }
-      return true;
-    },
-    {
-      message:
-        "Bij auto-berekenen zijn frequentie, beginstand en datum verplicht",
-      path: ["odometerFrequency"],
-    }
-  )
   .refine((data) => data.password === data.confirmPassword, {
     message: "Wachtwoorden komen niet overeen",
     path: ["confirmPassword"],
@@ -184,4 +183,5 @@ export const registrationSchema = z
     }
   );
 
+export type TrackingModeInput = z.infer<typeof trackingModeSchema>;
 export type RegistrationWizardData = z.infer<typeof registrationSchema>;

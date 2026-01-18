@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
 import { addVehicleSchema, normalizeLicensePlate } from "@/lib/validations/vehicle";
+import { getVehicleTrackingMode } from "@/lib/utils/vehicle-modes";
 import { revalidatePath } from "next/cache";
 import { enqueueJob } from "@/lib/jobs";
 
@@ -18,6 +19,7 @@ export async function addVehicle(formData: FormData) {
       type: formData.get("type") || "Auto",
       land: formData.get("land") || "Nederland",
       kilometerstandTracking: formData.get("kilometerstandTracking") || undefined,
+      trackingMode: formData.get("trackingMode") || "full_registration",
       isMain: formData.get("isMain") === "true",
     };
 
@@ -83,6 +85,7 @@ export async function addVehicle(formData: FormData) {
         type: validated.type,
         land: validated.land,
         kilometerstandTracking: validated.kilometerstandTracking,
+        trackingMode: validated.trackingMode,
         isMain: shouldBeMain,
         isEnabled: true,
         detailsStatus: "PENDING",
@@ -238,11 +241,36 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
       type: formData.get("type") || "Auto",
       land: formData.get("land") || "Nederland",
       kilometerstandTracking: formData.get("kilometerstandTracking") || undefined,
+      trackingMode: formData.get("trackingMode") || "full_registration",
       isMain: formData.get("isMain") === "true",
     };
 
     // Validate input
     const validated = addVehicleSchema.parse(rawData);
+
+    // Check for tracking mode change with existing registrations
+    const currentMode = getVehicleTrackingMode(vehicle);
+    const newMode = validated.trackingMode;
+
+    if (currentMode !== newMode) {
+      // Count registrations for this vehicle
+      const registrations = await db.query.registrations.findMany({
+        where: eq(schema.registrations.vehicleId, vehicleId),
+      });
+
+      if (registrations.length > 0) {
+        // Return special error code that triggers warning dialog
+        return {
+          success: false,
+          error: "MODE_CHANGE_WARNING",
+          data: {
+            registrationCount: registrations.length,
+            currentMode,
+            newMode,
+          },
+        };
+      }
+    }
 
     // Normalize license plate
     const normalizedPlate = normalizeLicensePlate(validated.licensePlate);
@@ -299,6 +327,7 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
           type: validated.type,
           land: validated.land,
           kilometerstandTracking: validated.kilometerstandTracking,
+          trackingMode: validated.trackingMode,
           isMain: validated.isMain,
           // Reset RDW status if license plate changed
           detailsStatus: licensePlateChanged ? "PENDING" : currentDetails.detailsStatus,

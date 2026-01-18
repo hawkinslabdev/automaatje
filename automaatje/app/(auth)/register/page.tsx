@@ -8,8 +8,8 @@ import { WizardStepIndicator } from "@/components/onboarding/wizard-step-indicat
 import { WizardNavigation } from "@/components/onboarding/wizard-navigation";
 import { StepAccountSetup } from "@/components/onboarding/step-account-setup";
 import { StepLocation } from "@/components/onboarding/step-location";
+import { StepTrackingMode } from "@/components/onboarding/step-tracking-mode";
 import { StepVehicle } from "@/components/onboarding/step-vehicle";
-import { StepOdometerTracking } from "@/components/onboarding/step-odometer-tracking";
 import { StepMileageRates } from "@/components/onboarding/step-mileage-rates";
 import { StepConfirmation } from "@/components/onboarding/step-confirmation";
 import { completeRegistration } from "@/lib/actions/registration-onboarding";
@@ -17,31 +17,36 @@ import { fetchVehicleDetails } from "@/lib/actions/vehicles";
 import {
   accountSetupSchema,
   locationSchema,
+  trackingModeSchema,
   vehicleRegistrationSchema,
-  odometerTrackingSchema,
   mileageRatesSchema,
 } from "@/lib/validations/registration-onboarding";
 import type { RegistrationWizardData } from "@/lib/validations/registration-onboarding";
 
 interface WizardState {
   currentStep: number;
+  // Step 1: Account
   name: string;
   email: string;
+  password: string;
+  confirmPassword: string;
+  // Step 2: Location
   locationText: string;
   locationLat?: number;
   locationLon?: number;
   locationStatus: 'idle' | 'loading' | 'success' | 'error';
+  // Step 3: Tracking Mode
+  trackingMode: "full_registration" | "simple_reimbursement";
+  // Step 4: Vehicle + Odometer
   licensePlate: string;
   vehicleType: "Auto" | "Motorfiets" | "Scooter" | "Fiets";
   vehicleName?: string;
-  odometerMode: "manual" | "auto_calculate";
-  odometerFrequency?: "dagelijks" | "wekelijks" | "maandelijks";
   initialOdometerKm?: number;
-  initialOdometerDate?: Date;
+  initialOdometerDate?: string;
+  // Step 5: Mileage Rates
   rateType: "standard" | "custom" | "none";
   customRate?: number;
-  password: string;
-  confirmPassword: string;
+  // UI State
   errors: Record<string, string | undefined>;
   isLoading: boolean;
   submitError?: string;
@@ -51,17 +56,22 @@ export default function RegisterPage() {
   const router = useRouter();
   const [state, setState] = useState<WizardState>({
     currentStep: 1,
+    // Step 1: Account
     name: "",
     email: "",
-    locationText: "",
-    locationStatus: 'idle',
-    licensePlate: "",
-    vehicleType: "Auto",
-    odometerMode: "auto_calculate", // Default to auto-calculate (recommended)
-    odometerFrequency: "maandelijks", // Default to monthly
-    rateType: "standard",
     password: "",
     confirmPassword: "",
+    // Step 2: Location
+    locationText: "",
+    locationStatus: 'idle',
+    // Step 3: Tracking Mode
+    trackingMode: "full_registration", // Default to full registration
+    // Step 4: Vehicle + Odometer
+    licensePlate: "",
+    vehicleType: "Auto",
+    // Step 5: Mileage Rates
+    rateType: "standard",
+    // UI State
     errors: {},
     isLoading: false,
   });
@@ -96,16 +106,15 @@ export default function RegisterPage() {
           });
           break;
         case 3:
+          trackingModeSchema.parse({
+            trackingMode: state.trackingMode,
+          });
+          break;
+        case 4:
           vehicleRegistrationSchema.parse({
             licensePlate: state.licensePlate,
             vehicleType: state.vehicleType,
             vehicleName: state.vehicleName || undefined,
-          });
-          break;
-        case 4:
-          odometerTrackingSchema.parse({
-            odometerMode: state.odometerMode,
-            odometerFrequency: state.odometerFrequency,
             initialOdometerKm: state.initialOdometerKm,
             initialOdometerDate: state.initialOdometerDate,
           });
@@ -228,22 +237,26 @@ export default function RegisterPage() {
 
     try {
       const data: RegistrationWizardData = {
+        // Step 1: Account
         name: state.name,
         email: state.email,
+        password: state.password,
+        confirmPassword: state.confirmPassword,
+        // Step 2: Location
         locationText: state.locationText,
         locationLat: state.locationLat,
         locationLon: state.locationLon,
+        // Step 3: Tracking Mode
+        trackingMode: state.trackingMode,
+        // Step 4: Vehicle + Odometer
         licensePlate: state.licensePlate,
         vehicleType: state.vehicleType,
         vehicleName: state.vehicleName,
-        odometerMode: state.odometerMode,
-        odometerFrequency: state.odometerFrequency,
         initialOdometerKm: state.initialOdometerKm,
         initialOdometerDate: state.initialOdometerDate,
+        // Step 5: Mileage Rates
         rateType: state.rateType,
         customRate: state.customRate,
-        password: state.password,
-        confirmPassword: state.confirmPassword,
       };
 
       const result = await completeRegistration(data);
@@ -275,26 +288,22 @@ export default function RegisterPage() {
   const canProceed = () => {
     switch (state.currentStep) {
       case 1:
+        // Account: all fields required
         return !!state.name && !!state.email && !!state.password && !!state.confirmPassword;
       case 2:
+        // Location: text required
         return !!state.locationText;
       case 3:
-        return !!state.licensePlate && !!state.vehicleType;
+        // Tracking Mode: always valid (has default)
+        return !!state.trackingMode;
       case 4:
-        // Odometer tracking - check if manual or auto-calculate is valid
-        if (state.odometerMode === "manual") {
-          return true;
-        } else {
-          // Auto-calculate requires frequency and initial odometer
-          return (
-            !!state.odometerFrequency &&
-            state.initialOdometerKm !== undefined &&
-            !!state.initialOdometerDate
-          );
-        }
+        // Vehicle: license plate and type required, odometer optional
+        return !!state.licensePlate && !!state.vehicleType;
       case 5:
+        // Mileage Rates: rate type required, custom rate if custom selected
         return !!state.rateType && (state.rateType !== "custom" || !!state.customRate);
       case 6:
+        // Confirmation: always valid
         return true;
       default:
         return false;
@@ -325,6 +334,7 @@ export default function RegisterPage() {
               </div>
             )}
 
+            {/* Step 1: Account Setup */}
             {state.currentStep === 1 && (
               <StepAccountSetup
                 data={{
@@ -338,6 +348,7 @@ export default function RegisterPage() {
               />
             )}
 
+            {/* Step 2: Location */}
             {state.currentStep === 2 && (
               <StepLocation
                 data={{
@@ -353,23 +364,24 @@ export default function RegisterPage() {
               />
             )}
 
+            {/* Step 3: Tracking Mode */}
             {state.currentStep === 3 && (
-              <StepVehicle
+              <StepTrackingMode
                 data={{
-                  licensePlate: state.licensePlate,
-                  vehicleType: state.vehicleType,
-                  vehicleName: state.vehicleName,
+                  trackingMode: state.trackingMode,
                 }}
                 errors={state.errors}
                 onChange={handleFieldChange}
               />
             )}
 
+            {/* Step 4: Vehicle + Odometer */}
             {state.currentStep === 4 && (
-              <StepOdometerTracking
+              <StepVehicle
                 data={{
-                  odometerMode: state.odometerMode,
-                  odometerFrequency: state.odometerFrequency,
+                  licensePlate: state.licensePlate,
+                  vehicleType: state.vehicleType,
+                  vehicleName: state.vehicleName,
                   initialOdometerKm: state.initialOdometerKm,
                   initialOdometerDate: state.initialOdometerDate,
                 }}
@@ -378,6 +390,7 @@ export default function RegisterPage() {
               />
             )}
 
+            {/* Step 5: Mileage Rates */}
             {state.currentStep === 5 && (
               <StepMileageRates
                 data={{
@@ -390,6 +403,7 @@ export default function RegisterPage() {
               />
             )}
 
+            {/* Step 6: Confirmation */}
             {state.currentStep === 6 && (
               <StepConfirmation
                 data={{
@@ -398,11 +412,10 @@ export default function RegisterPage() {
                   locationText: state.locationText,
                   locationLat: state.locationLat,
                   locationLon: state.locationLon,
+                  trackingMode: state.trackingMode,
                   licensePlate: state.licensePlate,
                   vehicleType: state.vehicleType,
                   vehicleName: state.vehicleName,
-                  odometerMode: state.odometerMode,
-                  odometerFrequency: state.odometerFrequency,
                   initialOdometerKm: state.initialOdometerKm,
                   initialOdometerDate: state.initialOdometerDate,
                   rateType: state.rateType,

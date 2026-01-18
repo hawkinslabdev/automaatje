@@ -67,18 +67,6 @@ export async function completeRegistration(
     // Hash password
     const passwordHash = await hashPassword(validated.password);
 
-    // Prepare odometer tracking metadata
-    const odometerTracking =
-      validated.odometerMode === "auto_calculate"
-        ? {
-            mode: validated.odometerMode,
-            defaultFrequency: validated.odometerFrequency,
-            notificationsEnabled: true,
-          }
-        : {
-            mode: validated.odometerMode,
-          };
-
     // Generate user ID
     const userId = nanoid();
 
@@ -100,17 +88,9 @@ export async function completeRegistration(
       },
       metadata: {
         isActive: true,
-        preferences: {
-          odometerTracking,
-        },
+        preferences: {},
       },
     });
-
-    // Prepare vehicle kilometerstand tracking
-    const kilometerstandTracking =
-      validated.odometerMode === "auto_calculate" && validated.odometerFrequency
-        ? validated.odometerFrequency
-        : "niet_registreren";
 
     // Generate vehicle ID
     const vehicleId = nanoid();
@@ -124,23 +104,24 @@ export async function completeRegistration(
         naamVoertuig: validated.vehicleName,
         type: validated.vehicleType,
         land: "Nederland",
-        kilometerstandTracking,
+        trackingMode: validated.trackingMode,
         isMain: true,
         isEnabled: true,
         detailsStatus: "PENDING",
       },
     });
 
-    // Create initial meterstand entry for auto-calculate mode
-    if (validated.odometerMode === "auto_calculate" && validated.initialOdometerKm && validated.initialOdometerDate) {
+    // Create initial meterstand entry if odometer was provided
+    if (validated.initialOdometerKm && validated.initialOdometerDate) {
       const meterstandId = nanoid();
+      const odometerDate = new Date(validated.initialOdometerDate);
       await db.insert(schema.registrations).values({
         id: meterstandId,
         userId,
         vehicleId,
         data: {
           type: "meterstand",
-          timestamp: validated.initialOdometerDate.getTime(),
+          timestamp: odometerDate.getTime(),
           startOdometerKm: validated.initialOdometerKm,
           tripType: "privé",
           departure: { text: "Kilometerstand registratie" },

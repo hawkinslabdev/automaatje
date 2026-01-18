@@ -117,6 +117,7 @@ export async function updateVehicleOdometerTracking(
 export async function updateExperimentalSettings(settings: {
   showPrivateDetourKm?: boolean;
   showLiveOnDesktop?: boolean;
+  detailedSimpleMode?: boolean;
 }) {
   try {
     const session = await requireAuth();
@@ -142,6 +143,7 @@ export async function updateExperimentalSettings(settings: {
           ...(currentPreferences.experimental || {}),
           showPrivateDetourKm: settings.showPrivateDetourKm ?? false,
           showLiveOnDesktop: settings.showLiveOnDesktop ?? false,
+          detailedSimpleMode: settings.detailedSimpleMode ?? false,
         },
       },
     };

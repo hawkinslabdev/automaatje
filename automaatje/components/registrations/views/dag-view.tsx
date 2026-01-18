@@ -158,6 +158,11 @@ export function DagView({ groupedByDate, stats }: DagViewProps) {
                             <div className="text-xs text-muted-foreground">
                               {data.endOdometerKm.toLocaleString("nl-NL")} km
                             </div>
+                          ) : data.registrationMode === "simple_reimbursement" ? (
+                            // Simple reimbursement mode doesn't require end odometer
+                            <div className="text-xs text-muted-foreground">
+                              {data.startOdometerKm?.toLocaleString("nl-NL")} km
+                            </div>
                           ) : (
                             <Badge
                               variant="secondary"

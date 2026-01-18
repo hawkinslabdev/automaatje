@@ -181,6 +181,14 @@ export function OdometerTrackingSettings({
             </Alert>
           )}
 
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Deze instelling geldt alleen voor voertuigen met <strong>volledige ritregistratie</strong> modus.
+              Voertuigen met <strong>eenvoudige kilometervergoeding</strong> modus gebruiken alleen afstand invoer.
+            </AlertDescription>
+          </Alert>
+
           <div className="space-y-4">
             <Label>Methode</Label>
             <RadioGroup

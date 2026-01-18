@@ -49,6 +49,12 @@ export async function checkIncompleteTrips() {
       return false;
     }
 
+    // Skip vehicles using simple_reimbursement mode - they don't need closed odometer
+    const vehicleDetails = reg.vehicle?.details as any;
+    if (vehicleDetails?.trackingMode === "simple_reimbursement") {
+      return false;
+    }
+
     // Check if trip is incomplete (no end odometer or explicitly marked incomplete)
     const isIncomplete = !data.endOdometerKm || data.isIncomplete === true;
     if (!isIncomplete) return false;

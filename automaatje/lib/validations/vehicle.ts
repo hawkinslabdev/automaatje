@@ -10,6 +10,11 @@ export const addVehicleSchema = z.object({
   kilometerstandTracking: z
     .enum(["niet_registreren", "dagelijks", "wekelijks", "maandelijks"])
     .optional(),
+  trackingMode: z
+    .enum(["full_registration", "simple_reimbursement"], {
+      message: "Selecteer een registratie modus",
+    })
+    .default("full_registration"),
   isMain: z.boolean().optional(),
 });
 

@@ -7,7 +7,7 @@ import path from "path";
 const DATABASE_URL = process.env.DATABASE_URL || "sqlite.db";
 const MIGRATIONS_FOLDER = "./drizzle";
 
-console.log("Starting safe migration process...");
+console.log("Preparing database...");
 
 const sqlite = new Database(DATABASE_URL);
 const db = drizzle(sqlite);
@@ -39,19 +39,17 @@ try {
         created_at INTEGER
       )
     `);
-  } else {
-    console.log("Migration tracking table exists");
-    
+  } else {   
     // Check if it's properly populated
     const migrationCount = sqlite
       .prepare(`SELECT COUNT(*) as count FROM "__drizzle_migrations"`)
       .get() as { count: number };
     
-    console.log(`Found ${migrationCount.count} migration records in tracking table`);
-    console.log(`Expected ${journal.entries.length} migrations total`);
+    console.debug(`Found ${migrationCount.count} migration records in tracking table`);
+    console.debug(`Expected ${journal.entries.length} migrations total`);
     
     if (migrationCount.count < journal.entries.length) {
-      console.log("⚠ Migration tracking table appears incomplete. Syncing...");
+      console.log("Migration tracking table appears incomplete. Syncing...");
     }
   }
 
@@ -87,7 +85,7 @@ try {
           .get(firstTable);
 
         if (tableExists) {
-          console.log(`  ✓ Migration ${entry.tag} already applied (found table: ${firstTable}) - marking as tracked`);
+          console.debug(`  ✓ Migration ${entry.tag} already applied (found table: ${firstTable}) - marking as tracked`);
           
           // Mark this migration as applied
           sqlite
@@ -103,9 +101,9 @@ try {
   }
 
   // Now run migrations normally - Drizzle will skip already-applied ones
-  console.log("Running migrations...");
+  console.debug("Running migrations...");
   migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  console.log("✓ Migrations completed successfully!");
+  console.log("Database is ready for use");
   
 } catch (error) {
   console.error("Migration error:", error);

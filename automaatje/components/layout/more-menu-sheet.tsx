@@ -78,11 +78,11 @@ const menuSections = {
       href: "/rapporten/meterstand",
       icon: Gauge,
     },
-    {
-      title: "Alle rapporten",
-      href: "/rapporten",
-      icon: FileText,
-    },
+    //{
+    //  title: "Alle rapporten",
+    //  href: "/rapporten",
+    //  icon: FileText,
+    //},
   ] as MenuItem[],
   system: [
     {

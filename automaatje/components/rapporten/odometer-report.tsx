@@ -44,6 +44,8 @@ import { formatPeriodLabel } from "@/lib/utils/date-helpers";
 import { exportOdometerReportPDF } from "@/lib/actions/pdf-export";
 import { getDateRangeForPeriod } from "@/lib/utils/date-helpers";
 import { useToast } from "@/hooks/use-toast";
+import { getModeLabelShort, getModeBadgeVariant } from "@/lib/utils/vehicle-modes";
+import { ExportDialog } from "./export-dialog";
 
 interface Vehicle {
   id: string;
@@ -105,6 +107,9 @@ export function OdometerReport({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedOrganization, setSelectedOrganization] = useState<string>("none");
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportDialogType, setExportDialogType] = useState<"csv" | "pdf">("csv");
   const { toast } = useToast();
 
   const hasData = data.length > 0;
@@ -177,94 +182,136 @@ export function OdometerReport({
     return sortDirection === "asc" ? comparison : -comparison;
   });
 
-  const handleExportCSV = () => {
-    // Get selected organization name
-    const selectedOrg = organizations.find((org) => org.id === selectedOrganization);
-    const organizationName = selectedOrg ? selectedOrg.name : "";
+  const handleExportCSV = (vehicleId: string, organizationId: string) => {
+    setIsExportingCSV(true);
 
-    // Build metadata rows
-    const metadataRows = [];
-    if (organizationName) {
-      metadataRows.push(`"Organisatie","${organizationName}"`);
-    }
-    metadataRows.push(`"Periode","${formatPeriodLabel(currentPeriod)}"`);
-    metadataRows.push(`"Gegenereerd","${formatDutchDateTime(new Date())}"`);
-    metadataRows.push(""); // Empty row separator
+    try {
+      // Get selected organization name
+      const selectedOrg = organizations.find((org) => org.id === organizationId);
+      const organizationName = selectedOrg ? selectedOrg.name : "";
 
-    const headers = ["Datum", "Tijdstip", "Voertuig", "Type", "Begin km", "Eind km", "Afstand", "Notitie"];
+      // Get selected vehicle
+      const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
+      const isAllVehicles = vehicleId === "all";
 
-    // Split trips with private detours into separate entries (Belastingdienst requirement)
-    const rows = sortedData.flatMap((item) => {
-      const date = new Date(item.parsedData.timestamp);
-      const vehicle = item.vehicle;
-      const vehicleLabel = vehicle.details.naamVoertuig || vehicle.licensePlate;
-      const hasPrivateDetour = item.parsedData.privateDetourKm && item.parsedData.privateDetourKm > 0;
+      // Filter data by vehicle if specific vehicle selected
+      const filteredData = isAllVehicles
+        ? sortedData
+        : sortedData.filter((item) => item.vehicle.id === vehicleId);
 
-      if (!hasPrivateDetour) {
-        // Regular trip - return as-is
-        return [[
-          formatDutchDate(date),
-          date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
-          vehicleLabel,
-          item.parsedData.tripType || "",
-          item.parsedData.startOdometerKm ? item.parsedData.startOdometerKm.toString() : "",
-          item.parsedData.endOdometerKm ? item.parsedData.endOdometerKm.toString() : "",
-          item.parsedData.distanceKm ? item.parsedData.distanceKm.toString() : "",
-          item.parsedData.description || "",
-        ]];
+      // Build metadata rows
+      const metadataRows = [];
+      if (organizationName) {
+        metadataRows.push(`"Organisatie","${organizationName}"`);
       }
+      if (selectedVehicle) {
+        metadataRows.push(`"Voertuig","${selectedVehicle.licensePlate}"`);
+      }
+      metadataRows.push(`"Periode","${formatPeriodLabel(currentPeriod)}"`);
+      metadataRows.push(`"Gegenereerd","${formatDutchDateTime(new Date())}"`);
+      metadataRows.push(""); // Empty row separator
 
-      // Mixed trip - split into business and private portions
-      const businessDistance = (item.parsedData.distanceKm || 0) - (item.parsedData.privateDetourKm || 0);
-      const businessEndOdometer = (item.parsedData.startOdometerKm || 0) + businessDistance;
+      // Add Kenteken column when "all" is selected
+      const headers = isAllVehicles
+        ? ["Datum", "Tijdstip", "Kenteken", "Voertuig", "Type", "Begin km", "Eind km", "Afstand", "Notitie"]
+        : ["Datum", "Tijdstip", "Voertuig", "Type", "Begin km", "Eind km", "Afstand", "Notitie"];
 
-      return [
-        // Business portion
-        [
-          formatDutchDate(date),
-          date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
-          vehicleLabel,
-          "zakelijk",
-          item.parsedData.startOdometerKm ? item.parsedData.startOdometerKm.toString() : "",
-          businessEndOdometer.toString(),
-          businessDistance.toString(),
-          item.parsedData.description || "",
-        ],
-        // Private detour portion
-        [
-          formatDutchDate(date),
-          date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
-          vehicleLabel,
-          "privé",
-          businessEndOdometer.toString(),
-          item.parsedData.endOdometerKm ? item.parsedData.endOdometerKm.toString() : "",
-          (item.parsedData.privateDetourKm || 0).toString(),
-          "Privé omrijkilometers",
-        ],
-      ];
-    });
+      // Split trips with private detours into separate entries (Belastingdienst requirement)
+      const rows = filteredData.flatMap((item) => {
+        const date = new Date(item.parsedData.timestamp);
+        const vehicle = item.vehicle;
+        const vehicleLabel = vehicle.details.naamVoertuig || vehicle.licensePlate;
+        const hasPrivateDetour = item.parsedData.privateDetourKm && item.parsedData.privateDetourKm > 0;
 
-    const csvContent = [
-      ...metadataRows,
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
+        const baseRow = isAllVehicles
+          ? [
+              formatDutchDate(date),
+              date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+              vehicle.licensePlate,
+              vehicleLabel,
+            ]
+          : [
+              formatDutchDate(date),
+              date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+              vehicleLabel,
+            ];
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+        if (!hasPrivateDetour) {
+          // Regular trip - return as-is
+          return [[
+            ...baseRow,
+            item.parsedData.tripType || "",
+            item.parsedData.startOdometerKm ? item.parsedData.startOdometerKm.toString() : "",
+            item.parsedData.endOdometerKm ? item.parsedData.endOdometerKm.toString() : "",
+            item.parsedData.distanceKm ? item.parsedData.distanceKm.toString() : "",
+            item.parsedData.description || "",
+          ]];
+        }
 
-    // Include organization in filename if selected
-    const orgPrefix = organizationName ? `${organizationName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-` : "";
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${orgPrefix}kilometerstand-rapport-${new Date().toISOString().split("T")[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        // Mixed trip - split into business and private portions
+        const businessDistance = (item.parsedData.distanceKm || 0) - (item.parsedData.privateDetourKm || 0);
+        const businessEndOdometer = (item.parsedData.startOdometerKm || 0) + businessDistance;
+
+        return [
+          // Business portion
+          [
+            ...baseRow,
+            "zakelijk",
+            item.parsedData.startOdometerKm ? item.parsedData.startOdometerKm.toString() : "",
+            businessEndOdometer.toString(),
+            businessDistance.toString(),
+            item.parsedData.description || "",
+          ],
+          // Private detour portion
+          [
+            ...baseRow,
+            "privé",
+            businessEndOdometer.toString(),
+            item.parsedData.endOdometerKm ? item.parsedData.endOdometerKm.toString() : "",
+            (item.parsedData.privateDetourKm || 0).toString(),
+            "Privé omrijkilometers",
+          ],
+        ];
+      });
+
+      const csvContent = [
+        ...metadataRows,
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+
+      // Include organization and vehicle in filename
+      const orgPrefix = organizationName ? `${organizationName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-` : "";
+      const vehiclePrefix = selectedVehicle ? `${selectedVehicle.licensePlate.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-` : "";
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${orgPrefix}${vehiclePrefix}kilometerstand-rapport-${new Date().toISOString().split("T")[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setExportDialogOpen(false);
+      toast({
+        title: "CSV geëxporteerd",
+        description: "Het rapport is succesvol gedownload",
+      });
+    } catch (error) {
+      console.error('CSV export error:', error);
+      toast({
+        title: "Fout bij exporteren",
+        description: "Er is een onverwachte fout opgetreden",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingCSV(false);
+    }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (vehicleId: string, organizationId: string) => {
     setIsExportingPDF(true);
 
     try {
@@ -276,9 +323,9 @@ export function OdometerReport({
         startDate,
         endDate,
         periodLabel: formatPeriodLabel(currentPeriod),
-        vehicleId: currentVehicle === 'all' ? undefined : currentVehicle,
+        vehicleId: vehicleId,
         tripType: currentTripType === 'all' ? undefined : currentTripType,
-        organizationId: selectedOrganization === 'none' ? undefined : selectedOrganization,
+        organizationId: organizationId === 'none' ? undefined : organizationId,
       });
 
       if (!result.success || !result.data) {
@@ -306,6 +353,7 @@ export function OdometerReport({
       link.click();
       URL.revokeObjectURL(url);
 
+      setExportDialogOpen(false);
       toast({
         title: "PDF geëxporteerd",
         description: "Het rapport is succesvol gedownload",
@@ -321,6 +369,20 @@ export function OdometerReport({
     } finally {
       setIsExportingPDF(false);
     }
+  };
+
+  // Handler for export dialog
+  const handleExport = (vehicleId: string, organizationId: string) => {
+    if (exportDialogType === "csv") {
+      handleExportCSV(vehicleId, organizationId);
+    } else {
+      handleExportPDF(vehicleId, organizationId);
+    }
+  };
+
+  const openExportDialog = (type: "csv" | "pdf") => {
+    setExportDialogType(type);
+    setExportDialogOpen(true);
   };
 
   const getVehicleLabel = (vehicle: Vehicle) => {
@@ -395,6 +457,7 @@ export function OdometerReport({
                 <SelectContent>
                   <SelectItem value="all">Alle types</SelectItem>
                   <SelectItem value="zakelijk">Zakelijk</SelectItem>
+                  <SelectItem value="woon-werk">Woon-werk</SelectItem>
                   <SelectItem value="privé">Privé</SelectItem>
                 </SelectContent>
               </Select>
@@ -567,7 +630,7 @@ export function OdometerReport({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportCSV}
+              onClick={() => openExportDialog("csv")}
               disabled={!hasData}
               className="w-full sm:w-auto h-10 lg:h-9"
             >
@@ -577,12 +640,12 @@ export function OdometerReport({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportPDF}
-              disabled={!hasData || isExportingPDF}
+              onClick={() => openExportDialog("pdf")}
+              disabled={!hasData}
               className="w-full sm:w-auto h-10 lg:h-9"
             >
               <FileText className="mr-2 h-4 w-4" />
-              {isExportingPDF ? 'Bezig...' : 'Exporteer PDF'}
+              Exporteer PDF
             </Button>
           </div>
         </CardHeader>
@@ -624,6 +687,7 @@ export function OdometerReport({
                         {getSortIcon("vehicle")}
                       </Button>
                     </TableHead>
+                    <TableHead>Modus</TableHead>
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
@@ -678,6 +742,11 @@ export function OdometerReport({
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <Badge variant={getModeBadgeVariant(item.parsedData.registrationMode || "full_registration")}>
+                            {getModeLabelShort(item.parsedData.registrationMode || "full_registration")}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right font-mono">
                           {item.parsedData.startOdometerKm ? `${item.parsedData.startOdometerKm.toLocaleString("nl-NL")} km` : "-"}
                         </TableCell>
@@ -695,10 +764,15 @@ export function OdometerReport({
                               variant={
                                 item.parsedData.tripType === "zakelijk"
                                   ? "default"
-                                  : "secondary"
+                                  : item.parsedData.tripType === "woon-werk"
+                                    ? "outline"
+                                    : "secondary"
                               }
                             >
-                              {item.parsedData.tripType}
+                              {item.parsedData.tripType === "woon-werk" ? "Woon-werk" :
+                               item.parsedData.tripType === "zakelijk" ? "Zakelijk" :
+                               item.parsedData.tripType === "privé" ? "Privé" :
+                               item.parsedData.tripType}
                             </Badge>
                           ) : (
                             "-"
@@ -716,6 +790,19 @@ export function OdometerReport({
           )}
         </CardContent>
       </Card>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        exportType={exportDialogType}
+        vehicles={vehicles}
+        organizations={organizations}
+        currentVehicle={currentVehicle}
+        currentOrganization={selectedOrganization}
+        isExporting={isExportingCSV || isExportingPDF}
+        onExport={handleExport}
+      />
     </div>
   );
 }

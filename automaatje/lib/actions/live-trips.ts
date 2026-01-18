@@ -311,12 +311,12 @@ export async function classifyLiveTrip(data: {
     }
 
     // Map trip type naar Nederlandse termen
-    // Note: COMMUTE wordt behandeld als privé volgens NL fiscale regels
-    let tripTypeNL: "zakelijk" | "privé";
+    let tripTypeNL: "zakelijk" | "privé" | "woon-werk";
     if (data.tripType === "BUSINESS") {
       tripTypeNL = "zakelijk";
+    } else if (data.tripType === "COMMUTE") {
+      tripTypeNL = "woon-werk";
     } else {
-      // PRIVATE en COMMUTE worden beide als privé behandeld
       tripTypeNL = "privé";
     }
 

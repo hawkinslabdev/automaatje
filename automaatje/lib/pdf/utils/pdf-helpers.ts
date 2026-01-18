@@ -78,6 +78,7 @@ export function capitalize(text: string): string {
  */
 export function formatTripTypeLabel(tripType: string): string {
   if (tripType === 'zakelijk') return 'Zakelijk';
+  if (tripType === 'woon-werk') return 'Woon-werk';
   if (tripType === 'privé') return 'Privé';
   return capitalize(tripType);
 }

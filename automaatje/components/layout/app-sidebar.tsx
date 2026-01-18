@@ -172,7 +172,7 @@ export function AppSidebar({
             ))}
             <SidebarMenuItem>
               <SidebarMenuButton 
-                className="text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                className="text-sidebar-foreground/50 hover:text-sidebar-foreground hidden"
                 asChild
               >
                 <Link href="/rapporten">

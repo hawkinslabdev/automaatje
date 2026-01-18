@@ -28,6 +28,9 @@ export function ExperimentalSettings({ user }: ExperimentalSettingsProps) {
   const [showLiveOnDesktop, setShowLiveOnDesktop] = useState<boolean>(
     experimental.showLiveOnDesktop ?? false // Default: disabled (opt-in)
   );
+  const [detailedSimpleMode, setDetailedSimpleMode] = useState<boolean>(
+    experimental.detailedSimpleMode ?? false
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -41,6 +44,7 @@ export function ExperimentalSettings({ user }: ExperimentalSettingsProps) {
       const result = await updateExperimentalSettings({
         showPrivateDetourKm: showPrivateDetour,
         showLiveOnDesktop: showLiveOnDesktop,
+        detailedSimpleMode: detailedSimpleMode,
       });
 
       if (result.success) {
@@ -122,6 +126,25 @@ export function ExperimentalSettings({ user }: ExperimentalSettingsProps) {
               id="live-desktop"
               checked={showLiveOnDesktop}
               onCheckedChange={setShowLiveOnDesktop}
+            />
+          </div>
+
+          <div className="border-t" />
+
+          {/* Feature 3: Detailed Simple Mode */}
+          <div className="flex items-start justify-between space-x-4">
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="detailed-simple" className="text-base font-medium">
+                Uitgebreide woon-werk registratie
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Toon vertrek- en bestemmingsadressen bij eenvoudige kilometervergoeding, met automatische afstandsberekening. Handig voor ritten buiten je vaste woon-werkverkeer.
+              </p>
+            </div>
+            <Switch
+              id="detailed-simple"
+              checked={detailedSimpleMode}
+              onCheckedChange={setDetailedSimpleMode}
             />
           </div>
 

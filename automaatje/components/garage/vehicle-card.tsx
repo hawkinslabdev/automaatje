@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Star, Power, Trash2, Loader2, RefreshCw, Edit } from "lucide-react";
 import { toggleVehicleEnabled, setMainVehicle, deleteVehicle, fetchVehicleDetails } from "@/lib/actions/vehicles";
+import { getVehicleTrackingMode, getModeLabelShort, getModeBadgeVariant } from "@/lib/utils/vehicle-modes";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -24,6 +25,7 @@ interface VehicleCardProps {
       type: "Auto" | "Motorfiets" | "Scooter" | "Fiets";
       land: string;
       kilometerstandTracking?: "niet_registreren" | "dagelijks" | "wekelijks" | "maandelijks";
+      trackingMode?: "full_registration" | "simple_reimbursement";
       isMain?: boolean;
       isEnabled?: boolean;
       make?: string;
@@ -40,6 +42,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const details = vehicle.details;
+  const trackingMode = getVehicleTrackingMode(vehicle);
 
   async function handleToggleEnabled() {
     setIsLoading(true);
@@ -98,6 +101,9 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
                 Hoofdvoertuig
               </Badge>
             )}
+            <Badge variant={getModeBadgeVariant(trackingMode)} className="text-xs">
+              {getModeLabelShort(trackingMode)}
+            </Badge>
             {!details.isEnabled && (
               <Badge variant="secondary" className="text-xs">
                 Uitgeschakeld

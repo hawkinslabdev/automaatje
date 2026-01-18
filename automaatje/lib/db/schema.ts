@@ -149,6 +149,8 @@ export const vehicles = sqliteTable("vehicles", {
     type: "Auto" | "Motorfiets" | "Scooter" | "Fiets";
     land: string;
     kilometerstandTracking?: "niet_registreren" | "dagelijks" | "wekelijks" | "maandelijks";
+    // Tracking mode determines validation and requirements for registrations
+    trackingMode?: "full_registration" | "simple_reimbursement"; // Default: "full_registration"
     isMain?: boolean;
     isEnabled?: boolean;
     make?: string;
@@ -273,12 +275,16 @@ export const registrations = sqliteTable("registrations", {
     // Basic trip information
     timestamp: number; // Trip start time
 
-    // Odometer readings (required by NL tax authority)
+    // Registration mode (snapshot at creation time)
+    // Determines which validation rules were applied
+    registrationMode?: "full_registration" | "simple_reimbursement";
+
+    // Odometer readings (required by NL tax authority for full_registration)
     startOdometerKm: number; // Starting mileage
     endOdometerKm?: number; // Ending mileage (optional for ongoing trips)
 
-    // Trip purpose (required by NL tax authority)
-    tripType: "zakelijk" | "privé"; // Business, private
+    // Trip purpose (required by NL tax authority for full_registration)
+    tripType: "zakelijk" | "privé" | "woon-werk"; // Business, private, commute
 
     // Departure address (required by NL tax authority)
     departure: {

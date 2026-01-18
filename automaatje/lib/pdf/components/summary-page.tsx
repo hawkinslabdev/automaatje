@@ -13,8 +13,9 @@ interface SummaryPageProps {
   summary: {
     totalTrips: number;
     totalDistance: number;
-    privateDistance: number;
     businessDistance: number;
+    commuteDistance: number;
+    privateDistance: number;
   };
   vehicle?: {
     licensePlate: string;
@@ -86,6 +87,26 @@ export function SummaryPage({
               <View style={{ width: '30%' }}>
                 <Text style={[commonStyles.tableCell, commonStyles.tableCellRight]}>
                   {formatPDFDistance(summary.businessDistance)}
+                </Text>
+              </View>
+              <View style={{ width: '20%' }}>
+                <Text style={[commonStyles.tableCell, commonStyles.tableCellRight]}>-</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Commute Row - Only show if there is commute distance */}
+          {summary.commuteDistance > 0 && (
+            <View style={commonStyles.tableRow}>
+              <View style={{ width: '30%' }}>
+                <Text style={commonStyles.tableCell}>Woon-werk</Text>
+              </View>
+              <View style={{ width: '20%' }}>
+                <Text style={[commonStyles.tableCell, commonStyles.tableCellRight]}>-</Text>
+              </View>
+              <View style={{ width: '30%' }}>
+                <Text style={[commonStyles.tableCell, commonStyles.tableCellRight]}>
+                  {formatPDFDistance(summary.commuteDistance)}
                 </Text>
               </View>
               <View style={{ width: '20%' }}>

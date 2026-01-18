@@ -82,6 +82,21 @@ export async function generateMonthlyReport(
         return sum + (data.distanceKm || 0);
       }, 0);
 
+    // Woon-werk (commute) trips
+    const commuteTrips = filteredRegistrations.filter(
+      (r) => (r.data as any).tripType === "woon-werk"
+    ).length;
+    const commuteKilometers = filteredRegistrations
+      .filter((r) => (r.data as any).tripType === "woon-werk")
+      .reduce((sum, reg) => {
+        const data = reg.data as any;
+        return sum + (data.distanceKm || 0);
+      }, 0);
+
+    // Private trips (excluding business and commute)
+    const privateTrips = totalTrips - businessTrips - commuteTrips;
+    const privateKilometers = totalKilometers - businessKilometers - commuteKilometers;
+
     const report = {
       vehicleId,
       year,
@@ -95,8 +110,10 @@ export async function generateMonthlyReport(
         totalKilometers: Math.round(totalKilometers * 10) / 10,
         businessTrips,
         businessKilometers: Math.round(businessKilometers * 10) / 10,
-        privateTrips: totalTrips - businessTrips,
-        privateKilometers: Math.round((totalKilometers - businessKilometers) * 10) / 10,
+        commuteTrips,
+        commuteKilometers: Math.round(commuteKilometers * 10) / 10,
+        privateTrips,
+        privateKilometers: Math.round(privateKilometers * 10) / 10,
       },
       registrations: filteredRegistrations,
       generatedAt: new Date().toISOString(),
@@ -217,6 +234,21 @@ export async function generateYearlyReport(vehicleId: string, year: number) {
         return sum + (data.distanceKm || 0);
       }, 0);
 
+    // Woon-werk (commute) trips
+    const commuteTrips = filteredRegistrations.filter(
+      (r) => (r.data as any).tripType === "woon-werk"
+    ).length;
+    const commuteKilometers = filteredRegistrations
+      .filter((r) => (r.data as any).tripType === "woon-werk")
+      .reduce((sum, reg) => {
+        const data = reg.data as any;
+        return sum + (data.distanceKm || 0);
+      }, 0);
+
+    // Private trips (excluding business and commute)
+    const privateTrips = totalTrips - businessTrips - commuteTrips;
+    const privateKilometers = totalKilometers - businessKilometers - commuteKilometers;
+
     // Calculate monthly breakdown
     const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
       const monthStart = new Date(year, i, 1);
@@ -254,8 +286,10 @@ export async function generateYearlyReport(vehicleId: string, year: number) {
         totalKilometers: Math.round(totalKilometers * 10) / 10,
         businessTrips,
         businessKilometers: Math.round(businessKilometers * 10) / 10,
-        privateTrips: totalTrips - businessTrips,
-        privateKilometers: Math.round((totalKilometers - businessKilometers) * 10) / 10,
+        commuteTrips,
+        commuteKilometers: Math.round(commuteKilometers * 10) / 10,
+        privateTrips,
+        privateKilometers: Math.round(privateKilometers * 10) / 10,
       },
       monthlyBreakdown,
       registrations: filteredRegistrations,

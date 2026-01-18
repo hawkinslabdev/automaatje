@@ -79,7 +79,7 @@ export function EditTripForm({
   const [endOdometer, setEndOdometer] = useState(
     registrationData.endOdometerKm ? registrationData.endOdometerKm.toString() : ""
   );
-  const [tripType, setTripType] = useState<"zakelijk" | "privé">(registrationData.tripType || "zakelijk");
+  const [tripType, setTripType] = useState<"zakelijk" | "privé" | "woon-werk">(registrationData.tripType || "zakelijk");
 
   const [departureText, setDepartureText] = useState(registrationData.departure?.text || "");
   const [departureLat, setDepartureLat] = useState<number | undefined>(registrationData.departure?.lat);
@@ -351,12 +351,13 @@ export function EditTripForm({
               {/* Trip Type */}
               <div className="space-y-2">
                 <Label htmlFor="tripType">Rittype *</Label>
-                <Select value={tripType} onValueChange={(value) => setTripType(value as "zakelijk" | "privé")}>
+                <Select value={tripType} onValueChange={(value) => setTripType(value as "zakelijk" | "privé" | "woon-werk")}>
                   <SelectTrigger id="tripType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="zakelijk">Zakelijk</SelectItem>
+                    <SelectItem value="woon-werk">Woon-werk</SelectItem>
                     <SelectItem value="privé">Privé</SelectItem>
                   </SelectContent>
                 </Select>

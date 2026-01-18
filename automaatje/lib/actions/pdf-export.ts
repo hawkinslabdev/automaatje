@@ -61,12 +61,14 @@ export async function exportOdometerReportPDF(params: ExportOdometerReportPDFPar
       }
     }
 
-    // 5. Calculate business kilometers (total - private)
+    // 5. Get kilometers by type from stats
     const totalDistance = Object.values(reportResult.stats.vehicleStats).reduce(
       (sum, v) => sum + (v.totalDistance || 0),
       0
     );
-    const businessDistance = totalDistance - (reportResult.stats.privateKilometers || 0);
+    const businessDistance = reportResult.stats.businessKilometers || 0;
+    const commuteDistance = reportResult.stats.commuteKilometers || 0;
+    const privateDistance = reportResult.stats.privateKilometers || 0;
 
     // 6. Transform data for PDF template
     // Sort trips by timestamp ascending (oldest first), then by odometer reading
@@ -140,8 +142,9 @@ export async function exportOdometerReportPDF(params: ExportOdometerReportPDFPar
       summary: {
         totalTrips: reportResult.stats.totalReadings,
         totalDistance,
-        privateDistance: reportResult.stats.privateKilometers || 0,
         businessDistance,
+        commuteDistance,
+        privateDistance,
       },
       trips: expandedTrips,
       vehicle: vehicleInfo ? {

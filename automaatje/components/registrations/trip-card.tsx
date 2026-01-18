@@ -22,7 +22,7 @@ interface TripCardProps {
     id: string;
     timestamp: number;
     data: {
-      tripType?: "zakelijk" | "privé";
+      tripType?: "zakelijk" | "privé" | "woon-werk";
       departure?: { text?: string };
       destination?: { text?: string };
       startOdometerKm?: number;
@@ -58,8 +58,24 @@ export function TripCard({ trip, className }: TripCardProps) {
   const isOdometerOnly = !data.destination && !data.departure;
 
   // Get trip type styling
-  const tripTypeVariant = data.tripType === "zakelijk" ? "default" : "secondary";
-  const tripTypeLabel = data.tripType === "zakelijk" ? "Zakelijk" : "Privé";
+  const getTripTypeVariant = () => {
+    switch (data.tripType) {
+      case "zakelijk": return "default";
+      case "woon-werk": return "outline";
+      case "privé": return "secondary";
+      default: return "default";
+    }
+  };
+  const getTripTypeLabel = () => {
+    switch (data.tripType) {
+      case "zakelijk": return "Zakelijk";
+      case "woon-werk": return "Woon-werk";
+      case "privé": return "Privé";
+      default: return "";
+    }
+  };
+  const tripTypeVariant = getTripTypeVariant();
+  const tripTypeLabel = getTripTypeLabel();
 
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();

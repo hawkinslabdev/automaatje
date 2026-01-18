@@ -136,6 +136,36 @@ export default function NieuweVoertuigPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="trackingMode">Registratie modus *</Label>
+              <Select name="trackingMode" defaultValue="full_registration" required disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecteer modus" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full_registration">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Volledige ritregistratie</span>
+                      <span className="text-xs text-muted-foreground">
+                        Voor leaseauto&apos;s en bedrijfswagens
+                      </span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="simple_reimbursement">
+                    <div className="flex flex-col">
+                      <span className="font-medium">Eenvoudige kilometervergoeding</span>
+                      <span className="text-xs text-muted-foreground">
+                        Voor woon-werk kilometers
+                      </span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Volledige registratie vereist gesloten kilometerstand en adressen. Eenvoudige vergoeding alleen afstand.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="land">Land *</Label>
               <Select name="land" defaultValue="Nederland" required disabled>
                 <SelectTrigger>

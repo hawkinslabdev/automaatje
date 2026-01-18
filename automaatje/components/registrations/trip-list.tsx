@@ -44,7 +44,7 @@ interface TripData {
   timestamp: number;
   startOdometerKm: number;
   endOdometerKm?: number;
-  tripType: "zakelijk" | "privé";
+  tripType: "zakelijk" | "privé" | "woon-werk";
   departure: { text: string; lat?: number; lon?: number };
   destination: { text: string; lat?: number; lon?: number };
   distanceKm?: number;
@@ -62,6 +62,7 @@ interface Registration {
     details: {
       naamVoertuig?: string;
       type: string;
+      trackingMode?: "full_registration" | "simple_reimbursement";
     };
   };
 }
@@ -242,7 +243,7 @@ export function TripList({ registrations: initialRegistrations }: TripListProps)
                             terugreis
                           </Badge>
                         )}
-                        {!trip.data.endOdometerKm && (
+                        {!trip.data.endOdometerKm && trip.vehicle.details.trackingMode !== "simple_reimbursement" && (
                           <Badge variant="secondary">
                             <AlertCircle className="h-3 w-3 mr-1" />
                             Te voltooien
@@ -286,8 +287,8 @@ export function TripList({ registrations: initialRegistrations }: TripListProps)
                         )}
                       </div>
 
-                      {/* Quick Complete for Incomplete Trips */}
-                      {!trip.data.endOdometerKm && (
+                      {/* Quick Complete for Incomplete Trips - only for full_registration mode */}
+                      {!trip.data.endOdometerKm && trip.vehicle.details.trackingMode !== "simple_reimbursement" && (
                         <div className="pt-3 border-t">
                           {completingId === trip.id ? (
                             <div className="space-y-3">

@@ -42,7 +42,16 @@ export const locationSchema = z.object({
   locationLon: z.number().optional(),
 });
 
-// Step 3: Vehicle
+// Step 3: Tracking Mode
+export const trackingModeSchema = z.object({
+  trackingMode: z
+    .enum(["full_registration", "simple_reimbursement"], {
+      message: "Selecteer een registratiemethode",
+    })
+    .default("full_registration"),
+});
+
+// Step 4: Vehicle (with optional odometer)
 export const vehicleSetupSchema = z.object({
   licensePlate: z
     .string()
@@ -55,6 +64,16 @@ export const vehicleSetupSchema = z.object({
     message: "Selecteer een voertuigtype",
   }),
   vehicleName: z.string().max(100).optional(),
+  // Optional odometer fields (merged from old step 4)
+  initialOdometerKm: z
+    .number({
+      message: "Kilometerstand moet een geldig getal zijn",
+    })
+    .int({ message: "Kilometerstand moet een geheel getal zijn" })
+    .min(0, { message: "Kilometerstand kan niet negatief zijn" })
+    .max(999999, { message: "Kilometerstand lijkt onrealistisch hoog" })
+    .optional(),
+  initialOdometerDate: z.string().optional(), // ISO date string
 });
 
 // Step 4: Odometer Tracking
@@ -118,31 +137,36 @@ export const accountPasswordSchema = z
 
 // Complete setup schema (all steps combined)
 export const setupSchema = z.object({
+  // Step 1: Account
   name: z.string().min(2),
   email: z.string().email(),
-  locationText: z.string().min(2),
-  locationLat: z.number().optional(),
-  locationLon: z.number().optional(),
-  licensePlate: z.string(),
-  vehicleType: z.enum(["Auto", "Motorfiets", "Scooter", "Fiets"]),
-  vehicleName: z.string().max(100).optional(),
-  odometerMode: z.enum(["manual", "auto_calculate"]),
-  odometerFrequency: z.enum(["dagelijks", "wekelijks", "maandelijks"]).optional(),
-  initialOdometerKm: z.number().optional(),
-  initialOdometerDate: z.date().optional(),
-  rateType: z.enum(["standard", "custom", "none"]),
-  customRate: z.number().min(0).max(10).optional(),
   password: z
     .string()
     .min(8)
     .regex(/[A-Z]/, { message: "Wachtwoord moet minimaal één hoofdletter bevatten" })
     .regex(/[a-z]/, { message: "Wachtwoord moet minimaal één kleine letter bevatten" })
     .regex(/[0-9]/, { message: "Wachtwoord moet minimaal één cijfer bevatten" }),
+  // Step 2: Location
+  locationText: z.string().min(2),
+  locationLat: z.number().optional(),
+  locationLon: z.number().optional(),
+  // Step 3: Tracking Mode
+  trackingMode: z.enum(["full_registration", "simple_reimbursement"]).default("full_registration"),
+  // Step 4: Vehicle + Odometer
+  licensePlate: z.string(),
+  vehicleType: z.enum(["Auto", "Motorfiets", "Scooter", "Fiets"]),
+  vehicleName: z.string().max(100).optional(),
+  initialOdometerKm: z.number().optional(),
+  initialOdometerDate: z.string().optional(),
+  // Step 5: Mileage Rates
+  rateType: z.enum(["standard", "custom", "none"]),
+  customRate: z.number().min(0).max(10).optional(),
 });
 
 export type AccountSetupInput = z.infer<typeof accountSetupSchema>;
 export type PersonalInfoInput = z.infer<typeof personalInfoSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
+export type TrackingModeInput = z.infer<typeof trackingModeSchema>;
 export type VehicleSetupInput = z.infer<typeof vehicleSetupSchema>;
 export type OdometerTrackingInput = z.infer<typeof odometerTrackingSchema>;
 export type MileageRatesInput = z.infer<typeof mileageRatesSchema>;

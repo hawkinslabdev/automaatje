@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GalleryVerticalEnd } from "lucide-react";
 
@@ -14,18 +14,29 @@ import {
 } from "@/components/ui/card";
 import { login } from "@/lib/actions/auth";
 import { checkResendConfigured } from "@/lib/actions/password-reset";
-import { cn } from "@/lib/utils";
+import { isRegistrationEnabled } from "@/lib/actions/setup";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordResetEnabled, setPasswordResetEnabled] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
 
   useEffect(() => {
     // Check if password reset is available
     checkResendConfigured().then(setPasswordResetEnabled);
-  }, []);
+    // Check if registration is enabled
+    isRegistrationEnabled().then(setRegistrationEnabled);
+
+    // Check for redirect reason
+    const errorParam = searchParams.get("error");
+    if (errorParam === "registration_disabled") {
+      setInfo("Registratie is uitgeschakeld. Neem contact op met de beheerder als je een account nodig hebt.");
+    }
+  }, [searchParams]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,6 +78,12 @@ export default function LoginPage() {
                     Log in met je account
                   </p>
                 </div>
+
+                {info && (
+                  <div className="rounded-md bg-blue-500/15 p-3 text-sm text-blue-700 dark:text-blue-400">
+                    {info}
+                  </div>
+                )}
 
                 {error && (
                   <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
@@ -114,15 +131,17 @@ export default function LoginPage() {
                   {isLoading ? "Bezig met inloggen..." : "Inloggen"}
                 </Button>
 
-                <div className="text-center text-sm">
-                  Nog geen account?{" "}
-                  <Link
-                    href="/register"
-                    className="underline underline-offset-4"
-                  >
-                    Registreren
-                  </Link>
-                </div>
+                {registrationEnabled && (
+                  <div className="text-center text-sm">
+                    Nog geen account?{" "}
+                    <Link
+                      href="/register"
+                      className="underline underline-offset-4"
+                    >
+                      Registreren
+                    </Link>
+                  </div>
+                )}
               </div>
             </form>
             <div className="relative hidden bg-muted md:block">

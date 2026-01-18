@@ -33,6 +33,7 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
   const metadata = (user.metadata as any) || {};
   const experimental = metadata.preferences?.experimental || {};
   const showPrivateDetourKm = experimental.showPrivateDetourKm ?? false;
+  const detailedSimpleMode = experimental.detailedSimpleMode ?? false;
 
   // Check for skipLastTrip query parameter
   const resolvedParams = await searchParams;
@@ -114,8 +115,13 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
     }
 
     // Check if last registration is incomplete (missing end odometer)
+    // Only applies to vehicles using full_registration tracking mode
+    // Vehicles with simple_reimbursement mode don't require closed odometer readings
+    const vehicleTrackingMode = lastRegistration.vehicle?.details?.trackingMode || "full_registration";
+    const requiresClosedOdometer = vehicleTrackingMode === "full_registration";
+
     // Use Number.isFinite to correctly handle 0 km rides
-    isLastIncomplete = !Number.isFinite(lastData.endOdometerKm);
+    isLastIncomplete = requiresClosedOdometer && !Number.isFinite(lastData.endOdometerKm);
   }
 
   return (
@@ -139,6 +145,7 @@ export default async function NieuweRegistratiePage({ searchParams }: NieuweRegi
           lastRegistration={lastRegistration}
           isAutoCalculateMode={isAutoCalculateMode}
           showPrivateDetourKm={showPrivateDetourKm}
+          detailedSimpleMode={detailedSimpleMode}
         />
       )}
     </div>

@@ -10,6 +10,33 @@ import { normalizeLicensePlate, validateDutchLicensePlate } from "@/lib/validati
 import { getRandomAvatarSeed } from "@/lib/avatar";
 
 /**
+ * Check if new user registration is enabled
+ * This is a public check (no auth required) used to block the /register route
+ * Returns true if registrations are allowed, false otherwise
+ */
+export async function isRegistrationEnabled(): Promise<boolean> {
+  try {
+    const setting = await db
+      .select()
+      .from(schema.settings)
+      .where(eq(schema.settings.key, "registrations_enabled"))
+      .limit(1);
+
+    if (setting.length === 0) {
+      // No setting found - default to disabled for security
+      return false;
+    }
+
+    const config = setting[0].value as { enabled?: boolean };
+    return config.enabled === true;
+  } catch (error) {
+    console.error("[isRegistrationEnabled] Error:", error);
+    // On error, default to disabled for security
+    return false;
+  }
+}
+
+/**
  * Check if setup is required (no users exist in database)
  * Returns true ONLY if we can confirm no users exist
  * Returns false if users exist OR if there's a database error
@@ -21,12 +48,22 @@ export async function checkSetupRequired(): Promise<boolean> {
       .select({ count: schema.users.id })
       .from(schema.users);
 
+    const result = userCount.length === 0;
+    console.debug("[checkSetupRequired] User count:", userCount.length, "Setup required:", result);
+
     // Setup required only if we successfully queried and found 0 users
-    return userCount.length === 0;
+    return result;
   } catch (error) {
-    console.error("Error checking setup requirement:", error);
-    // On database errors, assume setup is NOT required (don't redirect to setup)
-    // If the database is broken, let the user see the login page and get proper error messages
+    console.error("[checkSetupRequired] Error:", error);
+
+    // If table doesn't exist, database needs setup (migrations will run on setup)
+    if (error instanceof Error && error.message.includes("no such table")) {
+      console.log("[checkSetupRequired] No users table - setup required");
+      return true;
+    }
+
+    // On other database errors, assume setup is NOT required
+    // Let the user see the login page and get proper error messages
     return false;
   }
 }
@@ -92,13 +129,7 @@ export async function completeSetup(data: SetupWizardData) {
       },
       metadata: {
         isActive: true,
-        preferences: {
-          odometerTracking: {
-            mode: validated.odometerMode,
-            defaultFrequency: validated.odometerFrequency,
-            notificationsEnabled: true,
-          },
-        },
+        preferences: {},
       },
     });
     console.log('[completeSetup] User created:', userId);
@@ -116,7 +147,7 @@ export async function completeSetup(data: SetupWizardData) {
       isMain: true,
       isEnabled: true,
       detailsStatus: plateValidation.vehicleData ? "COMPLETE" : "PENDING",
-      kilometerstandTracking: validated.odometerFrequency || "niet_registreren",
+      trackingMode: validated.trackingMode || "full_registration",
     };
 
     // Add RDW vehicle data if available
@@ -132,17 +163,18 @@ export async function completeSetup(data: SetupWizardData) {
     });
     console.log('[completeSetup] Vehicle created:', vehicleId);
 
-    // 6a. Create initial meterstand entry for visibility and auditing
+    // 6a. Create initial meterstand entry if odometer was provided
     // This ensures the initial odometer reading appears in reports
-    if (validated.odometerMode === "auto_calculate" && validated.initialOdometerKm && validated.initialOdometerDate) {
+    if (validated.initialOdometerKm && validated.initialOdometerDate) {
       const meterstandId = nanoid();
+      const odometerDate = new Date(validated.initialOdometerDate);
       await db.insert(schema.registrations).values({
         id: meterstandId,
         userId,
         vehicleId,
         data: {
           type: "meterstand",
-          timestamp: validated.initialOdometerDate.getTime(),
+          timestamp: odometerDate.getTime(),
           startOdometerKm: validated.initialOdometerKm,
           tripType: "privé",
           departure: { text: "Kilometerstand registratie" },

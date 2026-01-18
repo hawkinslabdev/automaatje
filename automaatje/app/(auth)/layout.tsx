@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { checkSetupRequired } from "@/lib/actions/setup";
 
+// Force dynamic rendering - database check must run on every request
+export const dynamic = 'force-dynamic';
+
 export default async function AuthLayout({
   children,
 }: {

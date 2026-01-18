@@ -18,6 +18,7 @@ import { Loader2, MapPin, Calculator, Info, Clock, Car, ArrowRight } from "lucid
 import { createRegistration } from "@/lib/actions/registrations";
 import { AddressAutocomplete, type AddressSuggestion, type Location } from "@/components/ui/address-autocomplete";
 import { formatDutchAddress, formatDutchNumber, parseDutchNumber, formatDutchDateTime, formatDistance, formatDuration } from "@/lib/utils";
+import { getVehicleTrackingMode, getModeFormHelpText } from "@/lib/utils/vehicle-modes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -40,6 +41,7 @@ interface Vehicle {
     make?: string;
     model?: string;
     isMain?: boolean;
+    trackingMode?: "full_registration" | "simple_reimbursement";
   };
 }
 
@@ -58,6 +60,7 @@ interface TripRegistrationFormProps {
   lastRegistration?: LastRegistration | null;
   isAutoCalculateMode?: boolean;
   showPrivateDetourKm?: boolean;
+  detailedSimpleMode?: boolean;
 }
 
 export function TripRegistrationForm({
@@ -68,6 +71,7 @@ export function TripRegistrationForm({
   lastRegistration,
   isAutoCalculateMode = false,
   showPrivateDetourKm = false,
+  detailedSimpleMode = false,
 }: TripRegistrationFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -94,13 +98,44 @@ export function TripRegistrationForm({
 
   // Form state - initialize with smart defaults
   const [selectedVehicle, setSelectedVehicle] = useState<string>(defaultVehicleId);
+
+  // Get tracking mode for selected vehicle
+  const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle);
+  const trackingMode = selectedVehicleData ? getVehicleTrackingMode(selectedVehicleData) : "full_registration";
+  const isSimpleMode = trackingMode === "simple_reimbursement";
   const [timestamp, setTimestamp] = useState(() => {
     const now = new Date();
     return now.toISOString().slice(0, 16);
   });
   const [startOdometer, setStartOdometer] = useState(lastOdometer ? Math.round(lastOdometer).toString() : "");
   const [endOdometer, setEndOdometer] = useState("");
-  const [tripType, setTripType] = useState<"zakelijk" | "privé">("zakelijk");
+  // Smart default tripType based on vehicle mode and last registration
+  const getDefaultTripType = (): "zakelijk" | "privé" | "woon-werk" => {
+    if (isSimpleMode) {
+      return "woon-werk";
+    }
+    // Use last trip type if available for this vehicle
+    if (lastData?.tripType && lastVehicleId === selectedVehicle) {
+      return lastData.tripType;
+    }
+    return "zakelijk";
+  };
+  const [tripType, setTripType] = useState<"zakelijk" | "privé" | "woon-werk">(getDefaultTripType());
+
+  // Update tripType when vehicle changes (especially when switching to simple mode)
+  useEffect(() => {
+    const vehicleData = vehicles.find(v => v.id === selectedVehicle);
+    const mode = vehicleData ? getVehicleTrackingMode(vehicleData) : "full_registration";
+    const simpleMode = mode === "simple_reimbursement";
+
+    if (simpleMode) {
+      setTripType("woon-werk");
+    } else if (lastData?.tripType && lastVehicleId === selectedVehicle) {
+      setTripType(lastData.tripType);
+    } else {
+      setTripType("zakelijk");
+    }
+  }, [selectedVehicle, vehicles, lastData?.tripType, lastVehicleId]);
 
   // Departure address - start from last destination or home
   const defaultDeparture = lastDestination?.text || userHomeAddress?.text || "";
@@ -245,6 +280,43 @@ export function TripRegistrationForm({
     }
   };
 
+  const handleCalculateRoute = async () => {
+    if (!departureLat || !departureLon || !destinationLat || !destinationLon) {
+      return;
+    }
+
+    setIsCalculating(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({
+        fromLat: departureLat.toString(),
+        fromLon: departureLon.toString(),
+        toLat: destinationLat.toString(),
+        toLon: destinationLon.toString(),
+      });
+
+      const response = await fetch(`/api/osrm/calculate?${params}`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error("OSRM calculation failed:", result.error);
+        return;
+      }
+
+      setDistanceKm(formatDutchNumber(result.data.distanceKm, 1));
+      setRouteInfo({
+        distanceKm: result.data.distanceKm,
+        durationMinutes: result.data.durationMinutes,
+        geometry: result.data.geometry,
+      });
+    } catch (err) {
+      console.error("Distance calculation error:", err);
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -260,13 +332,24 @@ export function TripRegistrationForm({
       setError("Selecteer een voertuig");
       return;
     }
-    if (!departureText) {
-      setError("Vertrekadres is verplicht");
-      return;
-    }
-    if (!destinationText) {
-      setError("Aankomstadres is verplicht");
-      return;
+
+    // Mode-specific validation
+    if (isSimpleMode) {
+      // Simple mode: only distance is required
+      if (!distanceKm) {
+        setError("Gereden kilometers zijn verplicht");
+        return;
+      }
+    } else {
+      // Full mode: addresses are required
+      if (!departureText) {
+        setError("Vertrekadres is verplicht");
+        return;
+      }
+      if (!destinationText) {
+        setError("Aankomstadres is verplicht");
+        return;
+      }
     }
 
     try {
@@ -284,15 +367,38 @@ export function TripRegistrationForm({
 
       formData.append("tripType", tripType);
 
-      // Departure
-      formData.append("departureText", departureText);
-      if (departureLat) formData.append("departureLat", departureLat.toString());
-      if (departureLon) formData.append("departureLon", departureLon.toString());
+      // Mode-specific form data
+      if (isSimpleMode && !detailedSimpleMode) {
+        // Simple mode without detailed: send placeholder addresses
+        formData.append("departureText", "Woon-werk kilometers");
+        formData.append("destinationText", "Woon-werk kilometers");
+      } else if (isSimpleMode && detailedSimpleMode) {
+        // Simple mode with detailed: send actual addresses if available, otherwise placeholder
+        if (departureText && departureLat) {
+          formData.append("departureText", departureText);
+          formData.append("departureLat", departureLat.toString());
+          if (departureLon) formData.append("departureLon", departureLon.toString());
+        } else {
+          formData.append("departureText", "Woon-werk kilometers");
+        }
 
-      // Destination
-      formData.append("destinationText", destinationText);
-      if (destinationLat) formData.append("destinationLat", destinationLat.toString());
-      if (destinationLon) formData.append("destinationLon", destinationLon.toString());
+        if (destinationText && destinationLat) {
+          formData.append("destinationText", destinationText);
+          formData.append("destinationLat", destinationLat.toString());
+          if (destinationLon) formData.append("destinationLon", destinationLon.toString());
+        } else {
+          formData.append("destinationText", "Woon-werk kilometers");
+        }
+      } else {
+        // Full mode: send actual addresses
+        formData.append("departureText", departureText);
+        if (departureLat) formData.append("departureLat", departureLat.toString());
+        if (departureLon) formData.append("departureLon", departureLon.toString());
+
+        formData.append("destinationText", destinationText);
+        if (destinationLat) formData.append("destinationLat", destinationLat.toString());
+        if (destinationLon) formData.append("destinationLon", destinationLon.toString());
+      }
 
       // Parse distance (convert Dutch comma to dot)
       if (distanceKm) {
@@ -451,12 +557,13 @@ export function TripRegistrationForm({
               {/* Trip Type */}
               <div className="space-y-2">
                 <Label htmlFor="tripType">Rittype *</Label>
-                <Select value={tripType} onValueChange={(value: any) => setTripType(value)} required>
+                <Select value={tripType} onValueChange={(value: "zakelijk" | "privé" | "woon-werk") => setTripType(value)} required>
                   <SelectTrigger id="tripType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="zakelijk">Zakelijk</SelectItem>
+                    <SelectItem value="woon-werk">Woon-werk</SelectItem>
                     <SelectItem value="privé">Privé</SelectItem>
                   </SelectContent>
                 </Select>
@@ -465,7 +572,7 @@ export function TripRegistrationForm({
           </Card>
 
           {/* Odometer Readings */}
-          {!isAutoCalculateMode ? (
+          {!isAutoCalculateMode && !isSimpleMode ? (
             <Card>
               <CardHeader className="pb-3 lg:pb-6">
                 <CardTitle className="text-base lg:text-lg">Kilometerstand</CardTitle>
@@ -524,92 +631,260 @@ export function TripRegistrationForm({
             </Alert>
           )}
 
-          {/* Addresses */}
-          <Card>
-            <CardHeader className="pb-3 lg:pb-6">
-              <CardTitle className="text-base lg:text-lg">Route</CardTitle>
-              <CardDescription className="text-sm">Vertrek- en aankomstadres</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 lg:space-y-4">
-              {/* Departure Address */}
-              <div className="space-y-2">
-                <Label htmlFor="departure">Vertrekadres *</Label>
-                <AddressAutocomplete
-                  value={departureText}
-                  onChange={setDepartureText}
-                  onSelect={handleDepartureSelect}
-                  placeholder="bijv. Hooigracht 10, Leiden"
-                  onlyOpenDropdownOnUserInput={true}
-                  showCurrentLocation={true}
-                  homeAddress={userHomeAddress}
-                  favoriteLocations={favoriteLocations}
-                  previousLocations={previousLocations}
-                  maxPreviousLocations={5}
-                />
-              </div>
+          {/* Mode-aware help alert */}
+          {isSimpleMode && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                {getModeFormHelpText(trackingMode)}
+              </AlertDescription>
+            </Alert>
+          )}
 
-              {/* Destination Address */}
-              <div className="space-y-2">
-                <Label htmlFor="destination">Aankomstadres *</Label>
-                <AddressAutocomplete
-                  value={destinationText}
-                  onChange={setDestinationText}
-                  onSelect={handleDestinationSelect}
-                  placeholder="bijv. Coolsingel 40, Rotterdam"
-                  showCurrentLocation={true}
-                  homeAddress={userHomeAddress}
-                  favoriteLocations={favoriteLocations}
-                  previousLocations={previousLocations}
-                  maxPreviousLocations={5}
-                />
-              </div>
+          {/* Simple Mode: Distance only (required) + optional odometer */}
+          {isSimpleMode ? (
+            <>
+              {/* Detailed mode: Show addresses for simple mode when enabled */}
+              {detailedSimpleMode && (
+                <Card>
+                  <CardHeader className="pb-3 lg:pb-6">
+                    <CardTitle className="text-base lg:text-lg">Route (optioneel)</CardTitle>
+                    <CardDescription className="text-sm">Vul adressen in om automatisch de afstand te berekenen</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 lg:space-y-4">
+                    {/* Departure Address */}
+                    <div className="space-y-2">
+                      <Label htmlFor="departure">Vertrekadres</Label>
+                      <AddressAutocomplete
+                        value={departureText}
+                        onChange={setDepartureText}
+                        onSelect={handleDepartureSelect}
+                        placeholder="bijv. Hooigracht 10, Leiden"
+                        onlyOpenDropdownOnUserInput={true}
+                        showCurrentLocation={true}
+                        homeAddress={userHomeAddress}
+                        favoriteLocations={favoriteLocations}
+                        previousLocations={previousLocations}
+                      />
+                    </div>
 
-              {/* Auto-calculated Distance Info */}
-              {isCalculating && (
-                <Alert>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <AlertDescription>Afstand berekenen...</AlertDescription>
-                </Alert>
+                    {/* Destination Address */}
+                    <div className="space-y-2">
+                      <Label htmlFor="destination">Bestemmingsadres</Label>
+                      <AddressAutocomplete
+                        value={destinationText}
+                        onChange={setDestinationText}
+                        onSelect={handleDestinationSelect}
+                        placeholder="bijv. Stationsplein 1, Amsterdam"
+                        onlyOpenDropdownOnUserInput={true}
+                        showCurrentLocation={true}
+                        homeAddress={userHomeAddress}
+                        favoriteLocations={favoriteLocations}
+                        previousLocations={previousLocations}
+                      />
+                    </div>
+
+                    {/* Calculate Button */}
+                    {departureText && destinationText && departureLat && destinationLat && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCalculateRoute}
+                        disabled={isCalculating}
+                        className="w-full"
+                      >
+                        {isCalculating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Berekenen...
+                          </>
+                        ) : (
+                          <>
+                            <Calculator className="mr-2 h-4 w-4" />
+                            Bereken afstand
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* Route info */}
+                    {routeInfo && (
+                      <div className="rounded-lg border bg-muted/50 p-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Berekende afstand:</span>
+                          <span className="font-medium">{formatDistance(routeInfo.distanceKm)}</span>
+                        </div>
+                        {routeInfo.durationMinutes && (
+                          <div className="flex items-center justify-between text-sm mt-1">
+                            <span className="text-muted-foreground">Geschatte reistijd:</span>
+                            <span className="font-medium">{formatDuration(routeInfo.durationMinutes)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
 
-              {routeInfo && !isCalculating && (
-                <Alert className="bg-accent">
-                  <Info className="h-4 w-4 text-primary" />
-                  <AlertDescription className="text-accent-foreground">
-                    Automatisch berekend: {formatDistance(routeInfo.distanceKm)} ({formatDuration(routeInfo.durationMinutes)})
-                  </AlertDescription>
-                </Alert>
-              )}
+              <Card>
+                <CardHeader className="pb-3 lg:pb-6">
+                  <CardTitle className="text-base lg:text-lg">Gereden kilometers</CardTitle>
+                  <CardDescription className="text-sm">
+                    {detailedSimpleMode
+                      ? "Afstand wordt automatisch berekend of handmatig ingevoerd"
+                      : "Aantal gereden kilometers voor deze rit"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 lg:space-y-4">
+                  {/* Distance - REQUIRED for simple mode */}
+                  <div className="space-y-2">
+                    <Label htmlFor="distanceKm">Gereden kilometers *</Label>
+                    <Input
+                      id="distanceKm"
+                      type="text"
+                      inputMode="decimal"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      placeholder="bijv. 25"
+                      required
+                      className={distanceWarning ? "border-yellow-500" : ""}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {detailedSimpleMode && routeInfo
+                        ? "Berekend uit route (aanpasbaar)"
+                        : "Hoeveel kilometer heb je gereden?"}
+                    </p>
+                    {distanceWarning && (
+                      <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/10">
+                        <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                        <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                          {distanceWarning}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
 
-              {/* Manual Distance Override */}
-              <div className="space-y-2">
-                <Label htmlFor="distanceKm">
-                  Afstand (km)
-                  {!endOdometer && routeInfo && <span className="text-xs text-muted-foreground ml-2">(automatisch berekend)</span>}
-                </Label>
-                <Input
-                  id="distanceKm"
-                  type="text"
-                  inputMode="decimal"
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  placeholder="bijv. 125,5"
-                  className={distanceWarning ? "border-yellow-500" : ""}
-                />
-                {distanceWarning && (
-                  <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/10">
-                    <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                      {distanceWarning}
+                  {/* Optional odometer for simple mode */}
+                  <div className="space-y-2">
+                    <Label htmlFor="startOdometer">Kilometerstand (optioneel)</Label>
+                    <Input
+                      id="startOdometer"
+                      type="text"
+                      inputMode="numeric"
+                      value={startOdometer}
+                      onChange={(e) => setStartOdometer(e.target.value)}
+                      placeholder="bijv. 45000"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Optioneel voor je eigen administratie
+                    </p>
+                  </div>
+
+                  {/* Description for simple mode */}
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Omschrijving (optioneel)</Label>
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="bijv. Klantbezoek Rotterdam, vergadering Amsterdam"
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Toelichting voor je werkgever
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            /* Full Mode: Addresses (required) + Optional Details */
+            <>
+              <Card>
+                <CardHeader className="pb-3 lg:pb-6">
+                  <CardTitle className="text-base lg:text-lg">Route</CardTitle>
+                  <CardDescription className="text-sm">Vertrek- en aankomstadres</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 lg:space-y-4">
+                {/* Departure Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="departure">Vertrekadres *</Label>
+                  <AddressAutocomplete
+                    value={departureText}
+                    onChange={setDepartureText}
+                    onSelect={handleDepartureSelect}
+                    placeholder="bijv. Hooigracht 10, Leiden"
+                    onlyOpenDropdownOnUserInput={true}
+                    showCurrentLocation={true}
+                    homeAddress={userHomeAddress}
+                    favoriteLocations={favoriteLocations}
+                    previousLocations={previousLocations}
+                    maxPreviousLocations={5}
+                  />
+                </div>
+
+                {/* Destination Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="destination">Aankomstadres *</Label>
+                  <AddressAutocomplete
+                    value={destinationText}
+                    onChange={setDestinationText}
+                    onSelect={handleDestinationSelect}
+                    placeholder="bijv. Coolsingel 40, Rotterdam"
+                    showCurrentLocation={true}
+                    homeAddress={userHomeAddress}
+                    favoriteLocations={favoriteLocations}
+                    previousLocations={previousLocations}
+                    maxPreviousLocations={5}
+                  />
+                </div>
+
+                {/* Auto-calculated Distance Info */}
+                {isCalculating && (
+                  <Alert>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertDescription>Afstand berekenen...</AlertDescription>
+                  </Alert>
+                )}
+
+                {routeInfo && !isCalculating && (
+                  <Alert className="bg-accent">
+                    <Info className="h-4 w-4 text-primary" />
+                    <AlertDescription className="text-accent-foreground">
+                      Automatisch berekend: {formatDistance(routeInfo.distanceKm)} ({formatDuration(routeInfo.durationMinutes)})
                     </AlertDescription>
                   </Alert>
                 )}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Optional Details */}
-          <Card>
+                {/* Manual Distance Override */}
+                <div className="space-y-2">
+                  <Label htmlFor="distanceKm">
+                    Afstand (km)
+                    {!endOdometer && routeInfo && <span className="text-xs text-muted-foreground ml-2">(automatisch berekend)</span>}
+                  </Label>
+                  <Input
+                    id="distanceKm"
+                    type="text"
+                    inputMode="decimal"
+                    value={distanceKm}
+                    onChange={(e) => setDistanceKm(e.target.value)}
+                    placeholder="bijv. 125,5"
+                    className={distanceWarning ? "border-yellow-500" : ""}
+                  />
+                  {distanceWarning && (
+                    <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/10">
+                      <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                      <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                        {distanceWarning}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Optional Details - Only for Full Mode */}
+            <Card>
             <CardHeader className="pb-3 lg:pb-6">
               <CardTitle className="text-base lg:text-lg">Aanvullende gegevens</CardTitle>
               <CardDescription className="text-sm">Optionele velden voor extra informatie</CardDescription>
@@ -667,6 +942,8 @@ export function TripRegistrationForm({
               )}
             </CardContent>
           </Card>
+            </>
+          )}
 
           {/* Submit Button - Sticky on mobile */}
           <div className="lg:hidden h-16" /> {/* Spacer for fixed button on mobile */}

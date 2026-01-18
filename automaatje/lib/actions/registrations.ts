@@ -6,9 +6,14 @@ import { db, schema } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
 import {
   createRegistrationSchema,
-  createOdometerEntrySchema
+  createOdometerEntrySchema,
+  createSimpleReimbursementSchema,
+  getRegistrationSchemaForMode,
+  type CreateRegistrationInput,
+  type CreateSimpleReimbursementInput,
 } from "@/lib/validations/registration";
 import { isMeterstandEntry, isTripEntry } from "@/lib/utils/registration-types";
+import { getVehicleTrackingMode } from "@/lib/utils/vehicle-modes";
 import { revalidatePath } from "next/cache";
 import { enqueueJob } from "@/lib/jobs";
 import {
@@ -24,37 +29,16 @@ export async function createRegistration(formData: FormData) {
   try {
     const session = await requireAuth();
 
-    const rawData = {
-      vehicleId: formData.get("vehicleId"),
-      timestamp: formData.get("timestamp"),
-      startOdometerKm: formData.get("startOdometerKm"),
-      endOdometerKm: formData.get("endOdometerKm") || null,
-      tripType: formData.get("tripType"),
-      departure: {
-        text: formData.get("departureText") as string,
-        lat: formData.get("departureLat") ? Number(formData.get("departureLat")) : undefined,
-        lon: formData.get("departureLon") ? Number(formData.get("departureLon")) : undefined,
-      },
-      destination: {
-        text: formData.get("destinationText") as string,
-        lat: formData.get("destinationLat") ? Number(formData.get("destinationLat")) : undefined,
-        lon: formData.get("destinationLon") ? Number(formData.get("destinationLon")) : undefined,
-      },
-      distanceKm: formData.get("distanceKm") ? Number(formData.get("distanceKm")) : null,
-      calculationMethod: formData.get("calculationMethod") || undefined,
-      description: formData.get("description") || undefined,
-      alternativeRoute: formData.get("alternativeRoute") || undefined,
-      privateDetourKm: formData.get("privateDetourKm") ? Number(formData.get("privateDetourKm")) : null,
-      linkedTripId: formData.get("linkedTripId") || undefined,
-      tripDirection: formData.get("tripDirection") || undefined,
-    };
+    // Get vehicle ID first to determine tracking mode
+    const vehicleId = formData.get("vehicleId") as string;
 
-    // Validate input
-    const validated = createRegistrationSchema.parse(rawData);
+    if (!vehicleId) {
+      return { success: false, error: "Selecteer een voertuig" };
+    }
 
     // Verify vehicle belongs to user or is shared with user
     const vehicle = await db.query.vehicles.findFirst({
-      where: eq(schema.vehicles.id, validated.vehicleId),
+      where: eq(schema.vehicles.id, vehicleId),
       with: {
         shares: true,
       },
@@ -78,6 +62,58 @@ export async function createRegistration(formData: FormData) {
     if (!vehicleDetails.isEnabled) {
       return { success: false, error: "Dit voertuig is uitgeschakeld" };
     }
+
+    // Determine tracking mode from vehicle
+    const trackingMode = getVehicleTrackingMode(vehicle);
+
+    // Build raw data object for validation
+    const rawData = {
+      vehicleId,
+      timestamp: formData.get("timestamp"),
+      startOdometerKm: formData.get("startOdometerKm"),
+      endOdometerKm: formData.get("endOdometerKm") || null,
+      tripType: formData.get("tripType"),
+      distanceKm: formData.get("distanceKm") ? Number(formData.get("distanceKm")) : null,
+      description: formData.get("description") || undefined,
+      // Only include address fields for full registration mode
+      ...(trackingMode === "full_registration" && {
+        departure: {
+          text: formData.get("departureText") as string,
+          lat: formData.get("departureLat") ? Number(formData.get("departureLat")) : undefined,
+          lon: formData.get("departureLon") ? Number(formData.get("departureLon")) : undefined,
+        },
+        destination: {
+          text: formData.get("destinationText") as string,
+          lat: formData.get("destinationLat") ? Number(formData.get("destinationLat")) : undefined,
+          lon: formData.get("destinationLon") ? Number(formData.get("destinationLon")) : undefined,
+        },
+        calculationMethod: formData.get("calculationMethod") || undefined,
+        alternativeRoute: formData.get("alternativeRoute") || undefined,
+        privateDetourKm: formData.get("privateDetourKm") ? Number(formData.get("privateDetourKm")) : null,
+        linkedTripId: formData.get("linkedTripId") || undefined,
+        tripDirection: formData.get("tripDirection") || undefined,
+      }),
+    };
+
+    // Select appropriate validation schema based on mode
+    const validationSchema = getRegistrationSchemaForMode(trackingMode);
+    const parseResult = validationSchema.safeParse(rawData);
+
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0];
+      return { success: false, error: firstError?.message || "Validatiefout" };
+    }
+
+    const validated = parseResult.data;
+
+    // Branch to mode-specific registration logic
+    if (trackingMode === "simple_reimbursement") {
+      return await createSimpleReimbursementRegistration(session, vehicle, validated as CreateSimpleReimbursementInput);
+    }
+
+    // Continue with full registration mode logic (existing code below)
+    // At this point, we know validated is CreateRegistrationInput (not simple mode)
+    const fullValidated = validated as CreateRegistrationInput;
 
     // AUTO-CALCULATE LOGIC: Check if user has auto-calculate mode enabled
     const user = await db.query.users.findFirst({
@@ -150,7 +186,7 @@ export async function createRegistration(formData: FormData) {
         const prevData = previousRegistration.data as any;
         const prevOdometer = prevData.endOdometerKm || prevData.startOdometerKm || prevData.odometerKm;
 
-        if (prevOdometer && validated.startOdometerKm < prevOdometer) {
+        if (prevOdometer && validated.startOdometerKm != null && validated.startOdometerKm < prevOdometer) {
           return {
             success: false,
             error: `Kilometerstand moet hoger zijn dan de vorige registratie (${prevOdometer} km)`,
@@ -167,7 +203,7 @@ export async function createRegistration(formData: FormData) {
         const nextData = nextRegistration.data as any;
         const nextOdometer = nextData.startOdometerKm || nextData.odometerKm;
 
-        if (nextOdometer && validated.startOdometerKm > nextOdometer) {
+        if (nextOdometer && validated.startOdometerKm != null && validated.startOdometerKm > nextOdometer) {
           return {
             success: false,
             error: `Kilometerstand moet lager zijn dan de volgende registratie (${nextOdometer} km)`,
@@ -185,7 +221,7 @@ export async function createRegistration(formData: FormData) {
     }
 
     // Validate end odometer is higher than start odometer
-    if (validated.endOdometerKm && validated.endOdometerKm <= validated.startOdometerKm) {
+    if (validated.endOdometerKm && validated.startOdometerKm != null && validated.endOdometerKm <= validated.startOdometerKm) {
       return {
         success: false,
         error: "Eindstand moet hoger zijn dan de beginstand",
@@ -204,9 +240,9 @@ export async function createRegistration(formData: FormData) {
 
     // Calculate distance from odometer if not provided
     let calculatedDistance = validated.distanceKm;
-    let calculationMethod = validated.calculationMethod;
+    let calculationMethod = (validated as CreateRegistrationInput).calculationMethod;
 
-    if (!calculatedDistance && validated.endOdometerKm) {
+    if (!calculatedDistance && validated.endOdometerKm && validated.startOdometerKm != null) {
       calculatedDistance = validated.endOdometerKm - validated.startOdometerKm;
       calculationMethod = "odometer";
     }
@@ -221,25 +257,26 @@ export async function createRegistration(formData: FormData) {
     await db.insert(schema.registrations).values({
       id: registrationId,
       userId: session.userId!,
-      vehicleId: validated.vehicleId,
+      vehicleId: fullValidated.vehicleId,
       data: {
         type: "trip",
-        timestamp: validated.timestamp.getTime(),
-        startOdometerKm: validated.startOdometerKm,
-        endOdometerKm: validated.endOdometerKm || undefined,
-        tripType: validated.tripType,
-        departure: validated.departure,
-        destination: validated.destination,
+        registrationMode: "full_registration", // Store mode at creation time
+        timestamp: fullValidated.timestamp.getTime(),
+        startOdometerKm: fullValidated.startOdometerKm,
+        endOdometerKm: fullValidated.endOdometerKm || undefined,
+        tripType: fullValidated.tripType,
+        departure: fullValidated.departure,
+        destination: fullValidated.destination,
         distanceKm: calculatedDistance || undefined,
         calculationMethod: calculationMethod as any,
-        description: validated.description,
-        alternativeRoute: validated.alternativeRoute,
-        privateDetourKm: validated.privateDetourKm || undefined,
-        linkedTripId: validated.linkedTripId,
-        tripDirection: validated.tripDirection,
+        description: fullValidated.description,
+        alternativeRoute: fullValidated.alternativeRoute,
+        privateDetourKm: fullValidated.privateDetourKm || undefined,
+        linkedTripId: fullValidated.linkedTripId,
+        tripDirection: fullValidated.tripDirection,
         // A trip is incomplete if it doesn't have an actual end odometer reading
         // Use Number.isFinite to correctly handle 0 km rides (0 is complete, null/undefined is incomplete)
-        isIncomplete: !Number.isFinite(validated.endOdometerKm),
+        isIncomplete: !Number.isFinite(fullValidated.endOdometerKm),
         // Auto-calculate metadata
         odometerCalculated: odometerCalculated || undefined,
         calculationBasedOn: calculationBasedOn || undefined,
@@ -270,15 +307,90 @@ export async function createRegistration(formData: FormData) {
     if (previousRegistration && !odometerCalculated) {
       await checkOdometerGap(
         session.userId!,
-        validated.vehicleId,
+        fullValidated.vehicleId,
         previousRegistration,
-        validated.startOdometerKm
+        fullValidated.startOdometerKm
       );
     }
 
     return { success: true, data: { id: registrationId } };
   } catch (error) {
     console.error("Create registration error:", error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return {
+      success: false,
+      error: "Er is een fout opgetreden bij aanmaken van registratie",
+    };
+  }
+}
+
+/**
+ * Create a simple reimbursement registration
+ * For distance-only tracking (e.g., commute reimbursement)
+ * Simplified validation - no addresses or closed odometer required
+ */
+async function createSimpleReimbursementRegistration(
+  session: any,
+  vehicle: any,
+  validated: CreateSimpleReimbursementInput
+) {
+  try {
+    // Validate timestamp (not too far in future)
+    const now = new Date();
+    const maxFutureTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
+    if (validated.timestamp > maxFutureTime) {
+      return {
+        success: false,
+        error: "Tijdstip mag niet meer dan 5 minuten in de toekomst zijn",
+      };
+    }
+
+    // Create registration with simple reimbursement mode
+    const registrationId = nanoid();
+    await db.insert(schema.registrations).values({
+      id: registrationId,
+      userId: session.userId!,
+      vehicleId: vehicle.id,
+      registrationType: "MANUAL",
+      data: {
+        type: "trip",
+        registrationMode: "simple_reimbursement",
+        timestamp: validated.timestamp.getTime(),
+
+        // Required fields for simple mode
+        distanceKm: validated.distanceKm,
+        tripType: validated.tripType,
+        description: validated.description,
+
+        // Optional odometer readings
+        startOdometerKm: validated.startOdometerKm || 0,
+        endOdometerKm: validated.endOdometerKm,
+
+        // Placeholder addresses (not required but stored for consistency)
+        departure: { text: "Woon-werk kilometers" },
+        destination: { text: "Woon-werk kilometers" },
+
+        calculationMethod: "manual",
+      } as any,
+    } as any);
+
+    revalidatePath("/registraties");
+    revalidatePath("/dashboard");
+
+    // Check for odometer milestone if odometer was provided
+    if (validated.startOdometerKm && validated.startOdometerKm > 0) {
+      await checkOdometerMilestone(
+        session.userId!,
+        vehicle.id,
+        validated.startOdometerKm
+      );
+    }
+
+    return { success: true, data: { id: registrationId } };
+  } catch (error) {
+    console.error("Create simple reimbursement registration error:", error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
@@ -449,6 +561,20 @@ async function checkOdometerGap(
   newStartOdometer: number
 ) {
   try {
+    // Get vehicle to check tracking mode
+    const vehicle = await db.query.vehicles.findFirst({
+      where: eq(schema.vehicles.id, vehicleId),
+    });
+
+    if (!vehicle) return;
+
+    const mode = getVehicleTrackingMode(vehicle);
+
+    // SKIP gap check for simple reimbursement mode (no odometer required)
+    if (mode === "simple_reimbursement") {
+      return;
+    }
+
     const lastData = lastRegistration.data as any;
     const lastOdometer = lastData.endOdometerKm || lastData.startOdometerKm;
 
@@ -458,13 +584,6 @@ async function checkOdometerGap(
     const TOLERANCE = 1; // 1 km tolerance
 
     if (gap > TOLERANCE) {
-      // Get vehicle details
-      const vehicle = await db.query.vehicles.findFirst({
-        where: eq(schema.vehicles.id, vehicleId),
-      });
-
-      if (!vehicle) return;
-
       const vehicleDetails = vehicle.details as any;
       const vehicleName = vehicleDetails.make && vehicleDetails.model
         ? `${vehicleDetails.make} ${vehicleDetails.model}`
@@ -515,6 +634,18 @@ async function notifyIncompleteTrip(
   vehicleId: string
 ) {
   try {
+    // Check registration mode - SKIP notification for simple reimbursement mode
+    const registration = await db.query.registrations.findFirst({
+      where: eq(schema.registrations.id, registrationId),
+    });
+
+    const mode = (registration?.data as any)?.registrationMode || "full_registration";
+
+    // Simple mode doesn't require odometer, so no incomplete notification
+    if (mode === "simple_reimbursement") {
+      return;
+    }
+
     // Get vehicle details
     const vehicle = await db.query.vehicles.findFirst({
       where: eq(schema.vehicles.id, vehicleId),
@@ -1387,7 +1518,13 @@ export async function getIncompleteRegistrations() {
         return false;
       }
 
-      // Only show trips that were expected to be manually completed
+      // Skip vehicles using simple_reimbursement mode - they don't need closed odometer
+      const vehicleDetails = reg.vehicle?.details as any;
+      if (vehicleDetails?.trackingMode === "simple_reimbursement") {
+        return false;
+      }
+
+      // Only show trips that were expected to be manually completed (full_registration mode)
       // Use Number.isFinite to correctly handle 0 km rides
       return !Number.isFinite(data.endOdometerKm);
     });
@@ -1682,6 +1819,12 @@ export async function getOdometerReadingsReport(options?: {
         return false;
       }
 
+      // Exclude simple reimbursement mode entries WITHOUT odometer
+      // (simple mode entries WITH odometer should still be included)
+      if (data.registrationMode === "simple_reimbursement" && !data.startOdometerKm) {
+        return false;
+      }
+
       // Date filter
       if (timestamp < startTimestamp || timestamp > endTimestamp) {
         return false;
@@ -1704,12 +1847,16 @@ export async function getOdometerReadingsReport(options?: {
     const stats = {
       totalReadings: filteredRegistrations.length,
       privateKilometers: 0,
+      commuteKilometers: 0,
+      businessKilometers: 0,
       vehicleStats: {} as Record<string, {
         count: number;
         firstReading?: number;
         lastReading?: number;
         totalDistance?: number;
         privateKilometers?: number;
+        commuteKilometers?: number;
+        businessKilometers?: number;
       }>,
       periodStart: options?.startDate,
       periodEnd: options?.endDate,
@@ -1727,29 +1874,46 @@ export async function getOdometerReadingsReport(options?: {
           ? data.endOdometerKm - data.startOdometerKm 
           : 0);
 
-      // Calculate private kilometers
+      // Calculate kilometers by trip type
       if (data.tripType === "privé" && tripDistance) {
         stats.privateKilometers += tripDistance;
-      } else if (data.tripType === "zakelijk" && data.privateDetourKm) {
-        stats.privateKilometers += data.privateDetourKm;
+      } else if (data.tripType === "woon-werk" && tripDistance) {
+        stats.commuteKilometers += tripDistance;
+      } else if (data.tripType === "zakelijk" && tripDistance) {
+        // For zakelijk trips, subtract any private detour
+        const businessDistance = tripDistance - (data.privateDetourKm || 0);
+        stats.businessKilometers += businessDistance;
+        if (data.privateDetourKm) {
+          stats.privateKilometers += data.privateDetourKm;
+        }
       }
 
       if (!stats.vehicleStats[vehicleId]) {
         stats.vehicleStats[vehicleId] = {
           count: 0,
           privateKilometers: 0,
+          commuteKilometers: 0,
+          businessKilometers: 0,
         };
       }
 
       stats.vehicleStats[vehicleId].count++;
 
-      // Calculate private kilometers per vehicle
+      // Calculate kilometers per vehicle by trip type
       if (data.tripType === "privé" && tripDistance) {
         stats.vehicleStats[vehicleId].privateKilometers =
           (stats.vehicleStats[vehicleId].privateKilometers || 0) + tripDistance;
-      } else if (data.tripType === "zakelijk" && data.privateDetourKm) {
-        stats.vehicleStats[vehicleId].privateKilometers =
-          (stats.vehicleStats[vehicleId].privateKilometers || 0) + data.privateDetourKm;
+      } else if (data.tripType === "woon-werk" && tripDistance) {
+        stats.vehicleStats[vehicleId].commuteKilometers =
+          (stats.vehicleStats[vehicleId].commuteKilometers || 0) + tripDistance;
+      } else if (data.tripType === "zakelijk" && tripDistance) {
+        const businessDistance = tripDistance - (data.privateDetourKm || 0);
+        stats.vehicleStats[vehicleId].businessKilometers =
+          (stats.vehicleStats[vehicleId].businessKilometers || 0) + businessDistance;
+        if (data.privateDetourKm) {
+          stats.vehicleStats[vehicleId].privateKilometers =
+            (stats.vehicleStats[vehicleId].privateKilometers || 0) + data.privateDetourKm;
+        }
       }
 
       // Sum up actual trip distances for totalDistance
@@ -1861,7 +2025,7 @@ export async function updateRegistration(registrationId: string, formData: FormD
     const validated = createRegistrationSchema.parse(rawData);
 
     // Validate end odometer is higher than start odometer
-    if (validated.endOdometerKm && validated.endOdometerKm <= validated.startOdometerKm) {
+    if (validated.endOdometerKm && validated.startOdometerKm != null && validated.endOdometerKm <= validated.startOdometerKm) {
       return {
         success: false,
         error: "Eindstand moet hoger zijn dan de beginstand",
@@ -1947,9 +2111,9 @@ export async function updateRegistration(registrationId: string, formData: FormD
 
     // Calculate distance from odometer if not provided
     let calculatedDistance = validated.distanceKm;
-    let calculationMethod = validated.calculationMethod;
+    let calculationMethod = (validated as CreateRegistrationInput).calculationMethod;
 
-    if (!calculatedDistance && validated.endOdometerKm) {
+    if (!calculatedDistance && validated.endOdometerKm && validated.startOdometerKm != null) {
       calculatedDistance = validated.endOdometerKm - validated.startOdometerKm;
       calculationMethod = "odometer";
     }

@@ -24,8 +24,9 @@ export interface OdometerReportPDFProps {
   summary: {
     totalTrips: number;
     totalDistance: number;
-    privateDistance: number;
     businessDistance: number;
+    commuteDistance: number;
+    privateDistance: number;
   };
   trips: Trip[];
   vehicle?: {

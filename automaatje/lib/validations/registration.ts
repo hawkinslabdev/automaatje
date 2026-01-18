@@ -46,7 +46,7 @@ export const createRegistrationSchema = z.object({
     .nullable(),
 
   // Trip purpose (required by NL tax authority)
-  tripType: z.enum(["zakelijk", "privé"], {
+  tripType: z.enum(["zakelijk", "privé", "woon-werk"], {
     message: "Selecteer een rittype",
   }),
 
@@ -103,5 +103,63 @@ export const createOdometerEntrySchema = z.object({
   description: z.string().optional(),
 });
 
+/**
+ * Simplified schema for simple reimbursement mode
+ * Used for distance-only tracking (e.g., commute reimbursement)
+ * Only requires distance, doesn't require addresses or closed odometer
+ */
+export const createSimpleReimbursementSchema = z.object({
+  vehicleId: z.string().min(1, { message: "Selecteer een voertuig" }),
+
+  // Timestamp (trip start)
+  timestamp: z.coerce.date({
+    message: "Ongeldige datum",
+  }),
+
+  // Distance is REQUIRED for simple reimbursement mode
+  distanceKm: z.coerce
+    .number({
+      message: "Afstand moet een getal zijn",
+    })
+    .positive({ message: "Afstand moet positief zijn" }),
+
+  // Trip type (optional, defaults to "woon-werk" for simple reimbursement)
+  tripType: z.enum(["zakelijk", "privé", "woon-werk"]).default("woon-werk"),
+
+  // Optional description
+  description: z.string().optional(),
+
+  // OPTIONAL odometer readings (nice to have, not required)
+  startOdometerKm: z.coerce
+    .number({
+      message: "Kilometerstand moet een getal zijn",
+    })
+    .int({ message: "Kilometerstand moet een geheel getal zijn" })
+    .nonnegative({ message: "Kilometerstand kan niet negatief zijn" })
+    .optional()
+    .nullable(),
+
+  endOdometerKm: z.coerce
+    .number({
+      message: "Eindstand moet een getal zijn",
+    })
+    .int({ message: "Eindstand moet een geheel getal zijn" })
+    .positive({ message: "Eindstand moet positief zijn" })
+    .optional()
+    .nullable(),
+});
+
+/**
+ * Utility to select the appropriate validation schema based on tracking mode
+ */
+export function getRegistrationSchemaForMode(
+  mode: "full_registration" | "simple_reimbursement"
+) {
+  return mode === "simple_reimbursement"
+    ? createSimpleReimbursementSchema
+    : createRegistrationSchema;
+}
+
 export type CreateRegistrationInput = z.infer<typeof createRegistrationSchema>;
 export type CreateOdometerEntryInput = z.infer<typeof createOdometerEntrySchema>;
+export type CreateSimpleReimbursementInput = z.infer<typeof createSimpleReimbursementSchema>;

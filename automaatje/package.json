@@ -1,10 +1,12 @@
 {
   "name": "automaatje",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "scripts": {
+    "predev": "tsx lib/db/safe-migrate.ts",
     "dev": "next dev -p 3123",
     "build": "next build --webpack",
+    "prestart": "tsx lib/db/safe-migrate.ts",
     "start": "next start -p 3123",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
@@ -25,6 +27,7 @@
     "@dicebear/collection": "^9.2.4",
     "@dicebear/core": "^9.2.4",
     "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",

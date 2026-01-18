@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Car, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { formatDistance } from "@/lib/utils";
+import { getModeLabelShort, getModeBadgeVariant } from "@/lib/utils/vehicle-modes";
 
 interface TabelViewProps {
   flatList: any[];
@@ -144,7 +145,12 @@ export function TabelView({ flatList, stats }: TabelViewProps) {
                         })}
                       </div>
                     </div>
-                    <Badge variant="outline">{registration.vehicle.licensePlate}</Badge>
+                    <div className="flex flex-col gap-1.5">
+                      <Badge variant="outline">{registration.vehicle.licensePlate}</Badge>
+                      <Badge variant={getModeBadgeVariant(data.registrationMode || "full_registration")} className="text-xs">
+                        {getModeLabelShort(data.registrationMode || "full_registration")}
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Route */}
@@ -220,6 +226,7 @@ export function TabelView({ flatList, stats }: TabelViewProps) {
                       {getSortIcon("vehicle")}
                     </Button>
                   </TableHead>
+                  <TableHead className="whitespace-nowrap">Modus</TableHead>
                   <TableHead className="whitespace-nowrap">Van</TableHead>
                   <TableHead className="whitespace-nowrap">Naar</TableHead>
                   <TableHead className="whitespace-nowrap">Omschrijving</TableHead>
@@ -274,6 +281,11 @@ export function TabelView({ flatList, stats }: TabelViewProps) {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{registration.vehicle.licensePlate}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getModeBadgeVariant(data.registrationMode || "full_registration")}>
+                          {getModeLabelShort(data.registrationMode || "full_registration")}
+                        </Badge>
                       </TableCell>
                       <TableCell className="max-w-[150px] truncate">
                         {data.departure?.text || "-"}

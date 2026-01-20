@@ -49,7 +49,7 @@ export async function checkSetupRequired(): Promise<boolean> {
       .from(schema.users);
 
     const result = userCount.length === 0;
-    console.debug("[checkSetupRequired] User count:", userCount.length, "Setup required:", result);
+    // console.debug("[checkSetupRequired] User count:", userCount.length, "Setup required:", result);
 
     // Setup required only if we successfully queried and found 0 users
     return result;
@@ -58,7 +58,8 @@ export async function checkSetupRequired(): Promise<boolean> {
 
     // If table doesn't exist, database needs setup (migrations will run on setup)
     if (error instanceof Error && error.message.includes("no such table")) {
-      console.log("[checkSetupRequired] No users table - setup required");
+      //console.debug("[checkSetupRequired] No users table found, setup required");
+
       return true;
     }
 

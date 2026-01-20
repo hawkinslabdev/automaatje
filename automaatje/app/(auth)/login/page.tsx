@@ -15,11 +15,12 @@ import {
 import { login } from "@/lib/actions/auth";
 import { checkResendConfigured } from "@/lib/actions/password-reset";
 import { isRegistrationEnabled } from "@/lib/actions/setup";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   const [info, setInfo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordResetEnabled, setPasswordResetEnabled] = useState(false);
@@ -40,7 +41,6 @@ export default function LoginPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
@@ -52,10 +52,18 @@ export default function LoginPage() {
         router.push("/dashboard");
         router.refresh();
       } else {
-        setError(result.error || "Er is een fout opgetreden");
+        toast({
+          title: "Inloggen mislukt",
+          description: result.error || "Er is een fout opgetreden",
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      setError("Er is een onverwachte fout opgetreden");
+      toast({
+        title: "Inloggen mislukt",
+        description: "Er is een onverwachte fout opgetreden",
+        variant: "destructive",
+      });
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -82,12 +90,6 @@ export default function LoginPage() {
                 {info && (
                   <div className="rounded-md bg-blue-500/15 p-3 text-sm text-blue-700 dark:text-blue-400">
                     {info}
-                  </div>
-                )}
-
-                {error && (
-                  <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                    {error}
                   </div>
                 )}
 

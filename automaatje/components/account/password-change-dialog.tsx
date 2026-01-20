@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { changePassword } from "@/lib/actions/password-change";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,12 +30,10 @@ export function PasswordChangeDialog() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // UI state
-  const [error, setError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = () => {
     startTransition(async () => {
-      setError(undefined);
       setFieldErrors({});
 
       const result = await changePassword({
@@ -46,7 +43,11 @@ export function PasswordChangeDialog() {
       });
 
       if (!result.success && result.error) {
-        setError(result.error);
+        toast({
+          title: "Fout bij wijzigen",
+          description: result.error,
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Wachtwoord gewijzigd",
@@ -63,7 +64,6 @@ export function PasswordChangeDialog() {
     setCurrentPassword("");
     setPassword("");
     setConfirmPassword("");
-    setError(undefined);
     setFieldErrors({});
   };
 
@@ -90,13 +90,6 @@ export function PasswordChangeDialog() {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Huidig wachtwoord</Label>
             <Input

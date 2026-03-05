@@ -9,7 +9,7 @@ As of right now, we're focussing on launching the first version. That means that
 ### Installation
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/melosso/automaatje.git
+    git clone https://github.com/hawkinslabdev/automaatje.git
     cd automaatje
     ```
 

@@ -24,7 +24,7 @@
     "check:compliance": "tsx scripts/check-mileage-compliance.ts"
   },
   "dependencies": {
-    "@dicebear/collection": "^9.2.4",
+    "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -52,12 +52,12 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "iron-session": "^8.0.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "nanoid": "^5.1.6",
-    "next": "^16.1.1",
+    "next": "^16.2.4",
     "next-themes": "^0.4.6",
     "react": "^19.2.3",
     "react-day-picker": "^9.13.0",
